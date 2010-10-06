@@ -8,4 +8,4 @@ find_package(OpenGL)
 find_package(OpenCL)
 
 set(CMAKE_CXX_FLAGS "-Wall")
-add_subdirectory(src)
+add_subdirectory(clrt)

@@ -2,7 +2,7 @@
 
 include_directories (${PROJECT_SOURCE_DIR}/include) 
 
-add_executable(raytracer.cl 
+add_executable(clrt 
   main.cpp 
   GlutWindow.cpp
   RayTracer.cpp
@@ -10,4 +10,4 @@ add_executable(raytracer.cl
   GlutCLWindow.cpp
   RayTracerCL.cpp
 )
-target_link_libraries(raytracer.cl ${GLUT_glut_LIBRARY} ${OPENGL_LIBRARIES} ${OPENCL_LIBRARIES})
+target_link_libraries(clrt ${GLUT_glut_LIBRARY} ${OPENGL_LIBRARIES} ${OPENCL_LIBRARIES})
