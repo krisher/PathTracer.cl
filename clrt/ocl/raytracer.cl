@@ -188,7 +188,7 @@ __kernel void raytrace(__global float *out, __constant Camera const *camera,
 		pixelColor = mix(color , pixelColor, 1.0f / (float)(progressive));
 	}
 	vstore4(pixelColor, (y * imWidth + x), out);
-	//  out[y * imWidth + x] = f_color_to_i(pixelColor);
+	//out[y * imWidth + x] = 255.0f;
 	seeds[y * imWidth * 2 + x] = seed0;
 	seeds[y * imHeight * 2 + x * 2] = seed1;
 

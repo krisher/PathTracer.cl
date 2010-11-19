@@ -3,7 +3,6 @@
  *\file main.cpp
  *
  */
-
 #include <GL/glut.h>
 #include "GlutCLWindow.h"
 #include "gmtl/gmtl.h"
@@ -95,4 +94,5 @@ int main(void)
   window.setProgressive(10000);
 
   glutMainLoop();
+
 }

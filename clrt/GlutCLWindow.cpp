@@ -156,6 +156,7 @@ void GlutCLWindow::glutDisplayCallback() {
 	 * Flip the back/front buffer
 	 */
 	glutSwapBuffers();
+
 	//  glutPostRedisplay();
 }
 

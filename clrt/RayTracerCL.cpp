@@ -24,7 +24,7 @@
 #include "RayTracerCL.h"
 
 #define RAYTRACER_CL "ocl/raytracer.cl"
-#define CL_BUILD_OPTS "-Iocl"
+#define CL_BUILD_OPTS "-Iocl -cl-nv-verbose"
 //Comment this out to disable debugging and timing info
 #define _DEBUG_RT
 #include "Timing.h"
@@ -69,6 +69,7 @@ RayTracerCL::RayTracerCL(cl::Platform const &platform) : RayTracer()
 
 RayTracerCL::~RayTracerCL() 
 {
+	//TODO: Destroy context
 }
 
 inline void RayTracerCL::init(cl::Platform const &platform) 
@@ -86,8 +87,6 @@ inline void RayTracerCL::init(cl::Platform const &platform)
 #ifndef RT_CL_DEVICE_TYPE
   try 
     {
-      // TODO: NVidia does not define CL_GL_CONTEXT_KHR in their cl_gl headers.  Examples show this is not necessary,
-      // but the spec states otherwise.
       context = cl::Context(CL_DEVICE_TYPE_GPU, cps, NULL, NULL, NULL);
     }
   catch (cl::Error err) 
@@ -331,7 +330,8 @@ void RayTracerCL::rayTrace(cl_mem *buff, uint const width, uint const height, ui
       throw(err);
     }
 
-  camDirty = true;
+  //Not sure why this was here, forces update of camera and random seed data every frame.
+  //camDirty = true;
 }
 
 
