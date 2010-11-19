@@ -121,7 +121,7 @@ int sceneIntersection( float *hitDistance, __constant const Sphere * spheres, ui
     {
       __constant const Sphere *sphere = &(spheres[sphereNum]);
       float d = intersectSphere(sphere->center, sphere->radius, origin, direction);
-      if (d > 0 && (( d < *hitDistance) || *hitDistance == 0.0f))
+      if (d > 1e-5f && (( d < *hitDistance) || *hitDistance == 0.0f))
 	{
 	  hitObject = sphereNum;
 	  *hitDistance = d;

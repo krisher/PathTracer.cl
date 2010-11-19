@@ -31,6 +31,10 @@ class GlutCLWindow : public GlutWindow
    */
   uint progression;
   uint maxProgression;
+  
+  //TODO: These should be accessible from the camera.
+  float azimuth;
+  float elevation;
 
   void allocatePBO();
   void rayTrace();

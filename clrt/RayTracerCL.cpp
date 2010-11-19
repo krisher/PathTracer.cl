@@ -25,7 +25,7 @@
 
 #define RAYTRACER_CL "raytracer.cl"
 //Comment this out to disable debugging and timing info
-#define _DEBUG_RT
+//#define _DEBUG_RT
 #include "Timing.h"
 #ifdef _DEBUG_RT
 
@@ -196,7 +196,7 @@ void RayTracerCL::cameraChanged()
 {
   RayTracer::cameraChanged();
   camDirty = true;
-  std::cout << "TODO: Update camera buffer in CL" << std::endl;
+  //std::cout << "TODO: Update camera buffer in CL" << std::endl;
 }
 
 void RayTracerCL::updateCLCamera()
