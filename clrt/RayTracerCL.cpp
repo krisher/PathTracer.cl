@@ -23,9 +23,10 @@
 #include "PlatformInfo.h"
 #include "RayTracerCL.h"
 
-#define RAYTRACER_CL "raytracer.cl"
+#define RAYTRACER_CL "ocl/raytracer.cl"
+#define CL_BUILD_OPTS "-Iocl"
 //Comment this out to disable debugging and timing info
-//#define _DEBUG_RT
+#define _DEBUG_RT
 #include "Timing.h"
 #ifdef _DEBUG_RT
 
@@ -155,7 +156,7 @@ inline void RayTracerCL::init(cl::Platform const &platform)
 
   try 
     { 
-      rtProgram.build(clDevices);
+      rtProgram.build(clDevices, CL_BUILD_OPTS);
       std::cout << "Building Done!!!" << std::endl;
       std::string buildLog = rtProgram.getBuildInfo<CL_PROGRAM_BUILD_LOG>(clDevices[0]);
       std::cout << "Build Log: " << std::endl << buildLog << std::endl;
