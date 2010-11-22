@@ -8,6 +8,7 @@
 #include "geometryFuncs.h"
 
 #define PI 3.14159265358979323846f
+#define INV_PI 0.318309886f
 
 /*!
  * \brief Samples irradiance direction for modified Phong specular reflectance model.

@@ -255,7 +255,7 @@ void directIllumination(float4 *irradiance, const hit_info_t *hit, __constant Sp
                 uint isectObj = sceneIntersection(&isectDist, geometry, n_geometry, hit->hit_pt, lightDirection);
                 if ( isectObj == sphereNum )
                 {
-                    *irradiance += light->emission * radiance * (cosWincident);
+                    *irradiance += light->emission * radiance * cosWincident;
                 }
             }
         }
