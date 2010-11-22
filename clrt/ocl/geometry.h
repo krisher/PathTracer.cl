@@ -9,19 +9,19 @@
 #include <CL/cl.h>
 
 /*
- * Typedefs for float4 taken from ATI cl_platform.h v2.01.  
+ * Typedefs for float4 taken from ATI cl_platform.h v2.01.
  *
  * These definitions differ from the standard khronos definitions
  */
-#if defined( __SSE__ )                                                                                                                    
-    #include <xmmintrin.h>                                                                                                                
-#if defined( __GNUC__ )                                                                                                               
-typedef float __cl_float4   __attribute__((vector_size(16)));                                                                     
-    #else                                                                                                                                 
-typedef __m128 __cl_float4;                                                                                                       
-    #endif                                                                                                                                
-    #define __CL_FLOAT4__   1                                                                                                             
-#endif 
+#if defined( __SSE__ )
+    #include <xmmintrin.h>
+#if defined( __GNUC__ )
+typedef float __cl_float4   __attribute__((vector_size(16)));
+    #else
+typedef __m128 __cl_float4;
+    #endif
+    #define __CL_FLOAT4__   1
+#endif
 #if defined( __GNUC__ )
 #define CL_ALIGNED(_x)      __attribute__ ((aligned(_x)))
 #elif defined( _WIN32) && (_MSC_VER)
@@ -32,21 +32,21 @@ typedef __m128 __cl_float4;
 #define  CL_ALIGNED(_x)
 #endif
 
-typedef union                                                                                                                            
-{                                                                                                                                         
-  cl_float  CL_ALIGNED(16) s[4];                                                                                                        
-#if defined( __GNUC__) && ! defined( __STRICT_ANSI__ )                                                                                    
-  __extension__ struct{ cl_float   x, y, z, w; };                                                                                        
-  __extension__ struct{ cl_float   s0, s1, s2, s3; };                                                                                    
-  __extension__ struct{ cl_float2  lo, hi; };                                                                                            
-#endif                                                                                                                                    
-#if defined( __CL_FLOAT2__)                                                                                                               
-  __cl_float2     v2[2];                                                                                                                
-#endif                                                                                                                                    
-#if defined( __CL_FLOAT4__)                                                                                                               
-  __cl_float4     v4;                                                                                                                   
-#endif                                                                                                                                    
-}float4;  
+typedef union
+{
+  cl_float  CL_ALIGNED(16) s[4];
+#if defined( __GNUC__) && ! defined( __STRICT_ANSI__ )
+  __extension__ struct{ cl_float   x, y, z, w; };
+  __extension__ struct{ cl_float   s0, s1, s2, s3; };
+  __extension__ struct{ cl_float2  lo, hi; };
+#endif
+#if defined( __CL_FLOAT2__)
+  __cl_float2     v2[2];
+#endif
+#if defined( __CL_FLOAT4__)
+  __cl_float4     v4;
+#endif
+}float4;
 #endif /* __cplusplus */
 
 /*!
