@@ -18,18 +18,13 @@
 #define BOX_SIZE 5.0f
 
 /*!
- * \brief Computes diffuse response to direct illumination and adds the result to pixel color.
- *
- * \param pixelColor Diffuse response to each light will be accumulated into this pixel color.
- * \param spheres The scene including the lights to sample, and the objects that may occlude the light.
- * \param sphereCount The number of objects in the scene
- * \param origin The point that we are sampling direct illumination for.
- * \param hitNormal the surface normal for the sample point.
- * \param transmissionColor The color that is actually transmitted back to the pixel from the sample point.  Radiance from direct illumination is modulated by this color.
- * \param diffuse The diffuse response of the sample point.
- * \param seed A random seed used with frand() to generate random numbers as needed.
+ * Computes the direct illumination incident on a specified point.
+ * \param hit
+ * \param geometry
+ * \param n_geometry
+ * \param seed Random seed value, updated on output if used.
  */
-void directIllumination(float4 *pixelColor, __constant Sphere const *spheres, uint sphereCount, float4 const origin, float4 const hitNormal, float4 const transmissionColor, float4 const diffuse, seed_value_t *seed);
+float4 directIllumination(const hit_info_t *hit, __constant Sphere *geometry, const uint n_geometry, seed_value_t *seed);
 
 /*!
  * \brief Ray Tracer entry point
@@ -47,7 +42,7 @@ void directIllumination(float4 *pixelColor, __constant Sphere const *spheres, ui
  * \param seeds Seed data for the random number generator.  There should be one seed per pixel.  These values are used to generate a uniform random number sequence for each pixel, however the seed data is not updated in global memory.
  */
 __kernel void raytrace(__global float *out, __constant Camera const *camera,
-        __constant Sphere const *spheres, uint const sphereCount,
+        __constant Sphere *spheres, uint const sphereCount,
         uint const imWidth, uint const imHeight, uint const sampleRate,
         uint const maxDepth, uint const progressive, __global seed_value_t *seeds)
 {
@@ -118,7 +113,9 @@ __kernel void raytrace(__global float *out, __constant Camera const *camera,
                      */
                     if (hitSphere->diffuse.w > 0.0f)
                     {
-                        directIllumination(&pixelColor, spheres, sphereCount, origin + SMALL_F * hitNormal, hitNormal, transmissionColor, hitSphere->diffuse, &seed);
+                    	hit_info_t hit = {origin, hitNormal};
+                    	float4 direct = directIllumination(&hit, spheres, sphereCount, &seed);
+                    	pixelColor += direct * hitSphere->diffuse * transmissionColor * INV_PI;
                     }
 
                     /*
@@ -164,7 +161,11 @@ __kernel void raytrace(__global float *out, __constant Camera const *camera,
 
                         float4 boxNorm = boxNormal( (float4)0.0f, BOX_SIZE, BOX_SIZE, BOX_SIZE, origin, direction);
 
-                        directIllumination(&pixelColor, spheres, sphereCount, origin + SMALL_F * boxNorm, boxNorm, transmissionColor, (float4)(1.0f, 1.0f, 1.0f, 1.0f), &seed);
+                        hit_info_t hit = {origin, boxNorm};
+                    	float4 direct = directIllumination(&hit, spheres, sphereCount, &seed);
+                    	pixelColor += direct *  transmissionColor * INV_PI;
+
+                        //directIllumination(&pixelColor, spheres, sphereCount, origin + SMALL_F * boxNorm, boxNorm, transmissionColor, (float4)(1.0f, 1.0f, 1.0f, 1.0f), &seed);
 
                         sampleLambert(&direction, &boxNorm, frand(&seed), frand(&seed));
                         emissiveContributes = false;
@@ -191,74 +192,30 @@ __kernel void raytrace(__global float *out, __constant Camera const *camera,
 
 /*!
  *
- * \param pixelColor the irradiance of the sample point from the light source is added to this parameter.
- * \param spheres The scene geometry
- * \param sphereCount The number of spheres in 'spheres'
- * \param samplePoint The location to find irradiance at.
- * \param hitNormal The surface normal at the sample point.
- * \param transmissionColor
- * \param diffuse
+ * \param hit
+ * \param geometry
+ * \param n_geometry
  * \param seed Random seed value, updated on output if used.
  */
-void directIllumination(float4 *pixelColor, __constant Sphere const *spheres, uint sphereCount, float4 const samplePoint, float4 const hitNormal, float4 const transmissionColor, float4 const diffuse, seed_value_t *seed)
-{
-    /*
-     * Sample direct illumination
-     */
-    for (uint sphereNum = 0; sphereNum < sphereCount; ++sphereNum)
-    {
-        constant Sphere *light = &(spheres[sphereNum]);
-        if (dot(light->emission, light->emission) != 0)
-        {
-            float4 lightDirection;
-            float lightDist;
-            float radiance = sphereEmissiveRadiance(&lightDirection, &lightDist, light->center, light->radius, samplePoint, frand(seed), frand(seed));
-            float4 lightHitPt = samplePoint + lightDirection * lightDist;
-            float cosWincident = fabs(dot(lightDirection, hitNormal));
-            if (cosWincident > 0 && lightDist > 0)
-            {
-                float isectDist;
-                uint isectObj = sceneIntersection(&isectDist, spheres, sphereCount, samplePoint, lightDirection);
-                if ( isectObj == sphereNum )
-                {
-
-                    *pixelColor += transmissionColor *
-                    light->emission * radiance * //Radiance emitted toward samplePoint
-                    ((diffuse.w / PI) * diffuse) * //Material
-                    ((cosWincident));
-                }
-            }
-        }
-    }
-
-}
-
-typedef struct {
-    float4 hit_pt;
-    float4 surface_normal;
-} hit_info_t;
-
-void directIllumination(float4 *irradiance, const hit_info_t *hit, __constant Sphere *geometry, const uint n_geometry) {
+float4 directIllumination(const hit_info_t *hit, __constant Sphere *geometry, const uint n_geometry, seed_value_t *seed) {
+	ray_t ray;
+	ray.ox = hit->hit_pt.x + hit->surface_normal.x * SMALL_F;
+	ray.oy = hit->hit_pt.y + hit->surface_normal.y * SMALL_F;
+	ray.oz = hit->hit_pt.z + hit->surface_normal.z * SMALL_F;
+	float4 irradiance = (float4)0.0f;
    for (uint sphereNum = 0; sphereNum < n_geometry; ++sphereNum)
     {
         constant Sphere *light = &(geometry[sphereNum]);
         if (light->emission.w != 0)
         {
             float4 lightDirection;
-            float lightDist;
-            float radiance = sphereEmissiveRadiance(&lightDirection, &lightDist, light->center, light->radius, hit->hit_pt, frand(seed), frand(seed));
-            float4 lightHitPt = hit->hit_pt + lightDirection * lightDist;
-            float cosWincident = fabs(dot(lightDirection, hit->surface_normal));
-            if (cosWincident > 0 && lightDist > 0)
-            {
-                float isectDist;
-                uint isectObj = sceneIntersection(&isectDist, geometry, n_geometry, hit->hit_pt, lightDirection);
-                if ( isectObj == sphereNum )
+            float pdf = sphereEmissiveRadiance(&ray, light->center, light->radius, frand(seed), frand(seed));
+            float cosWincident = fabs(ray.dx * hit->surface_normal.x + ray.dy * hit->surface_normal.y + ray.dz * hit->surface_normal.z);
+                if ( cosWincident > 0 && visibilityTest(&ray, geometry, n_geometry) )
                 {
-                    *irradiance += light->emission * radiance * cosWincident;
+                    irradiance += light->emission * pdf * cosWincident;
                 }
-            }
         }
     }
-
+   return irradiance;
 }

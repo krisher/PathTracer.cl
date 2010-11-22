@@ -3,6 +3,27 @@
 #ifndef GEOMETRY_FUNCS_H
 #define GEOMETRY_FUNCS_H
 
+
+/*!
+ * \brief Ray structure used in OpenCL.
+ */
+typedef struct {
+	float ox;
+	float oy;
+	float oz;
+	float dx;
+	float dy;
+	float dz;
+	float tmin;
+	float tmax;
+} ray_t;
+
+
+typedef struct {
+    float4 hit_pt;
+    float4 surface_normal;
+} hit_info_t;
+
 float intersectSphere(float4 const center, float const radius, float4 const origin, float4 const direction)
 {
   float4 tO = origin - center;
@@ -128,7 +149,24 @@ int sceneIntersection( float *hitDistance, __constant const Sphere * spheres, ui
 	}
     }
   return hitObject;
-} 
+}
+
+/*!
+ * \brief Test to determine whether the specified ray intersects anything between it's tmin/tmax range values.
+ */
+bool visibilityTest(const ray_t *ray, __constant Sphere * geometry, uint n_geometry)
+{
+	float4 origin = (float4)(ray->ox, ray->oy, ray->oz, 0);
+	float4 direction = (float4)(ray->dx, ray->dy, ray->dz, 0);
+    for (int sphereNum = 0; sphereNum < n_geometry; ++sphereNum) {
+        __constant Sphere *sphere = &(geometry[sphereNum]);
+        float d = intersectSphere(sphere->center, sphere->radius, origin, direction);
+        if (d > ray->tmin && d < ray->tmax) {
+	      return false;
+	    }
+    }
+    return true;
+}
 
 
 #endif /* GEOMETRY_FUNCS_H */

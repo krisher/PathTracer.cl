@@ -228,22 +228,22 @@ bool sampleRefraction(float4 *sampleDirection, float4 const *surfaceNormal, floa
  *        the sample point to a point on the light, the distance to that point, and the radiance that is emitted from the light
  *        toward the sample point.
  *
- * \param directionOut Out variable for the direction from the sample-point to a point on the emissive sphere.
- * \param lightDistance Out variable for the distance to the emissive sphere hit point from the sample point.
+ * \param directionOut On input, ray.[ox,oy,oz] indicate the point to sample illumination at, on output, ray.[dx,dy,dz,tmin,tmax] are initialized.
  * \param sphereCenter the center of the emissive sphere.
  * \param radius The radius of the emissive sphere.
  * \param r1 A uniform random variable.
  * \param r2 A uniform random variable.
  */
-float sphereEmissiveRadiance(float4 *directionOut, float *lightDistance, float4 const sphereCenter, float const radius, float4 const origin, float const r1, float const r2)
+float sphereEmissiveRadiance(ray_t *ray, float4 const sphereCenter, float const radius, float const r1, float const r2)
 {
-  *directionOut = sphereCenter - origin;
-  float lightDist = length(*directionOut);
+	float4 origin = (float4)(ray->ox, ray->oy, ray->oz, 0);
+	float4 direction = sphereCenter - origin;
+	ray->tmax = length(direction);
       /*
        * The maximum angle from originToCenter for a ray eminating from origin
        * that will hit the sphere.
        */
-  float const sinMaxAngle = radius / lightDist;
+  float const sinMaxAngle = radius / ray->tmax;
   float const cosMaxAngle = sqrt(1.0f - sinMaxAngle * sinMaxAngle);
 
   /*
@@ -257,21 +257,26 @@ float sphereEmissiveRadiance(float4 *directionOut, float *lightDistance, float4 
   /*
    * Construct an orthonormal basis around the direction vector
    */
-  *directionOut *= 1.0f / lightDist;
+  direction /= ray->tmax;
+
   float4 nu = (float4)(0.0f,1.0f,0.0f,0.0f);
-  float cosAng = dot(nu, *directionOut);
+  float cosAng = dot(nu, direction);
   if (cosAng < -0.9f || cosAng > 0.9f) {
     nu.x = 1.0f;
     nu.y = 0.0f;
   }
-  nu = normalize(cross(nu, *directionOut));
-  float4 nv = cross(*directionOut, nu);
+  nu = normalize(cross(nu, direction));
+  float4 nv = cross(direction, nu);
   
-  *directionOut *= cosRandomAzimuth;
-  *directionOut += nu * cos(randomPolar) * sinRandomAzimuth + nv * sin(randomPolar) * sinRandomAzimuth;
+  direction *= cosRandomAzimuth;
+  direction += nu * cos(randomPolar) * sinRandomAzimuth + nv * sin(randomPolar) * sinRandomAzimuth;
 
-  *lightDistance = intersectSphere(sphereCenter, radius, origin, *directionOut);
-  float4 normalOut = (origin + *directionOut * (*lightDistance) - sphereCenter) / radius;
+  ray->tmin = 1e-5f;
+  ray->tmax = intersectSphere(sphereCenter, radius, origin, direction) - 1e-5f;
+  ray->dx = direction.x;
+  ray->dy = direction.y;
+  ray->dz = direction.z;
+
   /*
    * Multiply by 1/distribution of light samples over the hemisphere around the hit point.
    *
