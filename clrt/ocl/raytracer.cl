@@ -1,3 +1,4 @@
+//#pragma OPENCL EXTENSION cl_amd_printf : enable
 /*!
  * \file raytracer.cl
  * \brief OpenCL based Path-Tracer kernel.
@@ -73,7 +74,7 @@ __kernel void raytrace(__global float *out, __constant Camera const *camera,
 	{
 		for (uint sy = 0; sy < sampleRate; ++sy)
 		{
-			//TODO: sample camera aperture
+			//TODO: sample camera aperture for DoF
 			//TODO: There appears to be a bug with the initial hit on some surfaces, may be due to bad eye-rays.
 			float4 rdirection = normalize(camera->view +
 					camera->right * (float)(JITTER(x, sx, sampleRate, frand(&seed)) - ((float)imWidth)/2.0f) +
@@ -114,7 +115,7 @@ __kernel void raytrace(__global float *out, __constant Camera const *camera,
 					if (hitSphere->diffuse.w > 0.0f)
 					{
 						float4 direct = directIllumination(&hit, spheres, sphereCount, &seed);
-						pixelColor += direct * hitSphere->diffuse * transmissionColor * M_1_PI_F;
+						pixelColor += transmissionColor * direct * hitSphere->diffuse * M_1_PI_F; /* Diffuse BRDF */
 					}
 
 					/*
@@ -152,8 +153,8 @@ __kernel void raytrace(__global float *out, __constant Camera const *camera,
 					{
 						rayDepth = maxDepth + 1; /* Terminate ray. */
 					}
-				} // if hit object
-				else // No object hit.
+				} // if hit (sphere) object
+				else // No object hit (process hit for box).
 				{
 					float hitDistance = intersectsBox(&ray, (float4)0.0f, BOX_SIZE, BOX_SIZE, BOX_SIZE);
 					if (hitDistance > ray.tmin && hitDistance < ray.tmax)
@@ -161,17 +162,14 @@ __kernel void raytrace(__global float *out, __constant Camera const *camera,
 						ray.tmax = hitDistance;
 						hit_info_t hit;
 						hit.hit_pt = (float4)(ray.ox + ray.dx * ray.tmax, ray.oy + ray.dy * ray.tmax, ray.oz + ray.dz * ray.tmax, 0.0f);
-
-						boxNormal(&ray, &hit, (float4)0.0f, BOX_SIZE, BOX_SIZE, BOX_SIZE);
+						boxNormal(&ray, &hit, (float4)0.0f, BOX_SIZE, BOX_SIZE, BOX_SIZE); /* populate surface_normal */
 
 						float4 direct = directIllumination(&hit, spheres, sphereCount, &seed);
-						//TODO: use pdf values...
-						pixelColor += direct * transmissionColor * M_1_PI_F;
+						pixelColor += transmissionColor * direct * M_1_PI_F; /* Diffuse BRDF */
 
-						//directIllumination(&pixelColor, spheres, sphereCount, origin + SMALL_F * boxNorm, boxNorm, transmissionColor, (float4)(1.0f, 1.0f, 1.0f, 1.0f), &seed);
 
-						sampleLambert(&ray, &hit, frand(&seed), frand(&seed));
-						//TODO: update transmission color
+						const float pdf = sampleLambert(&ray, &hit, frand(&seed), frand(&seed));
+						transmissionColor *= fabs(ray.dx * hit.surface_normal.x + ray.dy * hit.surface_normal.y + ray.dz * hit.surface_normal.z) / pdf;
 						emissiveContributes = false;
 
 					}
@@ -212,12 +210,10 @@ float4 directIllumination(const hit_info_t *hit, __constant Sphere *geometry, co
 		constant Sphere *light = &(geometry[sphereNum]);
 		if (light->emission.w != 0)
 		{
-			float4 lightDirection;
-			float pdf = sphereEmissiveRadiance(&ray, light->center, light->radius, frand(seed), frand(seed));
-			float cosWincident = fabs(ray.dx * hit->surface_normal.x + ray.dy * hit->surface_normal.y + ray.dz * hit->surface_normal.z);
-			if ( cosWincident > 0 && visibilityTest(&ray, geometry, n_geometry) )
+			float transferPower = sphereEmissiveRadiance(&ray, light->center, light->radius, frand(seed), frand(seed)) * fabs(ray.dx * hit->surface_normal.x + ray.dy * hit->surface_normal.y + ray.dz * hit->surface_normal.z);
+			if (transferPower > 0 && visibilityTest(&ray, geometry, n_geometry))
 			{
-				irradiance += light->emission * pdf * cosWincident;
+				irradiance += light->emission * transferPower;
 			}
 		}
 	}

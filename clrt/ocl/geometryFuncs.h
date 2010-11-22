@@ -44,7 +44,7 @@ float intersectSphere(const ray_t *ray, float4 const center, float const radius)
 
 void boxNormal(const ray_t *ray, hit_info_t *hit, float4 const center, float const xSize, float const ySize,
 		float const zSize) {
-	float4 hitPt = hit->hit_pt;
+	const float4 hitPt = hit->hit_pt;
 	// Figure out which face the intersection occurred on
 	float xDist = fabs(fabs(hitPt.x) - xSize);
 	float yDist = fabs(fabs(hitPt.y) - ySize);
@@ -59,12 +59,15 @@ void boxNormal(const ray_t *ray, hit_info_t *hit, float4 const center, float con
 	} else {
 		hit->surface_normal = (float4) (0.0f, 0.0f, 1.0f, 0.0f);
 	}
+	/*
+	 * Normal should point toward ray origin.
+	 */
 	if (hit->surface_normal.x * ray->dx + hit->surface_normal.y * ray->dy + hit->surface_normal.z * ray->dz > 0.0f)
 		hit->surface_normal *= -1.0f;
 }
 
-float intersectsBox(const ray_t *ray, float4 center,
-		float xSize, float ySize, float zSize) {
+float intersectsBox(const ray_t *ray, const float4 center,
+		const float xSize, const float ySize, const float zSize) {
 	float nearIsect = 0;
 	float farIsect = 0;
 
