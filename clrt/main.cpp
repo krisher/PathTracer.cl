@@ -83,6 +83,7 @@ int main(void)
   sphere.emission.x = 15.0f;
   sphere.emission.y = 15.0f;
   sphere.emission.z = 15.0f;
+  sphere.emission.w = 1.0;
   sphere.radius = 0.5f;
   sphere.ks = 0.0f;
   sphere.extinction.w = 0;

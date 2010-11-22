@@ -88,7 +88,8 @@ typedef struct
    */
   float4 extinction;
   /*!
-   * The emissive color of the sphere.
+   * The emissive color of the sphere.  emission.w must be non-zero for emissive term to be
+   * taken into account.
    */
   float4 emission;
   /*!
