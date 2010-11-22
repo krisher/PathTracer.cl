@@ -6,7 +6,10 @@
 #ifndef RNG_H
 #define RNG_H
 
-typedef uint2 seed_value_t;
+typedef struct {
+	uint x;
+	uint y;
+} seed_value_t;
 /*!
  * \brief Floating-point random number generation.  
  *
