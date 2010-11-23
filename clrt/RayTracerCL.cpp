@@ -68,7 +68,7 @@ RayTracerCL::~RayTracerCL() {
 	//TODO: Destroy context
 }
 
-inline void RayTracerCL::init(cl::Platform const &platform) {
+void RayTracerCL::init(cl::Platform const &platform) {
 	cl_context_properties cps[7] = {
 			CL_CONTEXT_PLATFORM,
 			(cl_context_properties) (platform)(),
@@ -110,6 +110,7 @@ inline void RayTracerCL::init(cl::Platform const &platform) {
 		::printDeviceInfo(&(*devItr));
 	}
 #endif /* _DEBUG_RT */
+	cl::Device device;
 	/*
 	 * Just pick the first device.
 	 *
@@ -118,6 +119,8 @@ inline void RayTracerCL::init(cl::Platform const &platform) {
 	if (clDevices.size() == 0) {
 		//TODO: this is a fatal error...
 
+	} else {
+		device = clDevices[0];
 	}
 
 	/*
@@ -149,17 +152,28 @@ inline void RayTracerCL::init(cl::Platform const &platform) {
 		rtProgram.build(clDevices, CL_BUILD_OPTS);
 		std::cout << "Building Done!!!" << std::endl;
 		std::string buildLog = rtProgram.getBuildInfo<CL_PROGRAM_BUILD_LOG> (
-				clDevices[0]);
+				device);
 		std::cout << "Build Log: " << std::endl << buildLog << std::endl;
 	} catch (cl::Error buildErr) {
 		std::string buildLog = rtProgram.getBuildInfo<CL_PROGRAM_BUILD_LOG> (
-				clDevices[0]);
+				device);
 		std::cerr << "Build Error: " << std::endl << buildLog << std::endl;
 		throw(buildErr);
 	}
 
 	raytracer_kernel = cl::Kernel(rtProgram, "raytrace", NULL);
 
+	/*
+	 * Compute the maximum work-group size for this kernel and the selected device.
+	 */
+	size_t k_wg_size = getKernelMaxWGSize(&device, &raytracer_kernel);
+	ndRangeSizes[0] = 32; //TODO: 32 might be too large
+	ndRangeSizes[1] = k_wg_size / ndRangeSizes[0];
+
+#ifdef _DEBUG_RT
+	std::cout << "Kernel Max WG Size: " << k_wg_size << std::endl;
+	std::cout << "Selected ND Range dimensions: [" << ndRangeSizes[0] << ", " << ndRangeSizes[1] << "]." << std::endl;
+#endif /* _DEBUG_RT */
 	/*
 	 * Create an OpenCL command queue
 	 */
@@ -313,10 +327,10 @@ void RayTracerCL::rayTrace(cl_mem *buff, uint const width, uint const height,
 		 * Number of suggested work items can be queried for each kernel to get a good value based on hardware capabilities and
 		 * the number of regs actually used by the kernel.
 		 */
-		int wgMutipleHeight = (int)ceil(height / 16) * 16;
+		int wgMutipleHeight = (int)ceil(height / (float)ndRangeSizes[1]) * ndRangeSizes[1];
 		cmdQueue.enqueueNDRangeKernel(raytracer_kernel, cl::NullRange,
-				cl::NDRange(wgMultipleWidth, wgMutipleHeight), cl::NDRange(32,
-						16));
+				cl::NDRange(wgMultipleWidth, wgMutipleHeight), cl::NDRange(ndRangeSizes[0],
+						ndRangeSizes[1]));
 		cmdQueue.finish();
 #ifdef _DEBUG_RT
 //		std::cout << "CL Render Time: " << timeElapsed(startTicks) << "s"

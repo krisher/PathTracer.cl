@@ -40,6 +40,10 @@ class RayTracerCL : public RayTracer
    * \brief Flag indicating whether OpenCL/OpenGL sharing is both supported and enabled for the command queue/device used for processing.
    */
   bool glSharing;
+  /*!
+   * \brief ND Range size, determined automatically from CL context.
+   */
+  size_t ndRangeSizes[2];
 
   
   // Structures used to transfer data to OpenCL.

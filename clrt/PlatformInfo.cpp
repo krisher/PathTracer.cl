@@ -3,7 +3,6 @@
  * \brief Simple CL app to query platform info
  */
 #include <utility>
-
 #include <CL/cl.hpp>
 
 #include <cstdio>
@@ -91,6 +90,17 @@ void printDeviceInfo(cl::Device * device)
   std::cout << "\tGL Sharing supported: " << ((supportsGL) ? "yes" : "no") << std::endl;
 }
 
+size_t getDeviceMaxWGSize(const cl::Device *device) {
+	size_t sizeData;
+	device->getInfo(CL_DEVICE_MAX_WORK_GROUP_SIZE, &sizeData);
+	return sizeData;
+}
+
+size_t getKernelMaxWGSize(const cl::Device *device, const cl::Kernel *kernel) {
+	size_t size_data;
+	kernel->getWorkGroupInfo(*device, CL_KERNEL_WORK_GROUP_SIZE, &size_data);
+	return size_data;
+}
 
 bool supportsGLSharing(cl::Device &device)
 {

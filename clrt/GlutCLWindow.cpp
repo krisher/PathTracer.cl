@@ -205,28 +205,28 @@ void GlutCLWindow::glutSpecialKeypressCallback(int key, int x, int y) {
 		azimuth = fmod((azimuth + 3.0f), 360.0f);
 		rayTracer.setCameraSpherical(gmtl::Point3f(0, -4, 0), elevation,
 				azimuth, 6);
-		reallocPBO = true;
+		progression = 0;
 		break;
 	}
 	case GLUT_KEY_RIGHT: {
 		azimuth = fmod((azimuth - 3.0f), 360.0f);
 		rayTracer.setCameraSpherical(gmtl::Point3f(0, -4, 0), elevation,
 				azimuth, 6);
-		reallocPBO = true;
+		progression = 0;
 		break;
 	}
 	case GLUT_KEY_UP: {
 		elevation = fmin(elevation + 3.0f, 90.0f);
 		rayTracer.setCameraSpherical(gmtl::Point3f(0, -4, 0), elevation,
 				azimuth, 6);
-		reallocPBO = true;
+		progression = 0;
 		break;
 	}
 	case GLUT_KEY_DOWN: {
 		elevation = fmax(elevation - 3.0f, 10.0f);
 		rayTracer.setCameraSpherical(gmtl::Point3f(0, -4, 0), elevation,
 				azimuth, 6);
-		reallocPBO = true;
+		progression = 0;
 		break;
 	}
 	}
