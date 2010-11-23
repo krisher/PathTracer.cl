@@ -319,8 +319,8 @@ void RayTracerCL::rayTrace(cl_mem *buff, uint const width, uint const height,
 						16));
 		cmdQueue.finish();
 #ifdef _DEBUG_RT
-		std::cout << "CL Render Time: " << timeElapsed(startTicks) << "s"
-				<< std::endl;
+//		std::cout << "CL Render Time: " << timeElapsed(startTicks) << "s"
+//				<< std::endl;
 #endif /* _DEBUG_RT */
 	} catch (cl::Error err) {
 		std::cerr << "Error submitting kernel for execution: " << err.err()

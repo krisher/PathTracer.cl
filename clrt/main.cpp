@@ -80,9 +80,9 @@ int main(void)
   sphere.center.y = 4.0f;
   sphere.center.z = 2.0f;
   sphere.diffuse.w = 0.0;
-  sphere.emission.x = 15.0f;
-  sphere.emission.y = 15.0f;
-  sphere.emission.z = 15.0f;
+  sphere.emission.x = 1.0f;
+  sphere.emission.y = 1.0f;
+  sphere.emission.z = 1.0f;
   sphere.emission.w = 1.0;
   sphere.radius = 0.5f;
   sphere.ks = 0.0f;

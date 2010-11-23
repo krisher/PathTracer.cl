@@ -167,4 +167,6 @@ bool visibilityTest(const ray_t *ray, __constant Sphere * geometry, const uint n
 	return true;
 }
 
+
+
 #endif /* GEOMETRY_FUNCS_H */
