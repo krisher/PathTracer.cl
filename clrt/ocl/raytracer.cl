@@ -16,7 +16,7 @@
 /*
  * Half-width of the cube that encloses the scene.
  */
-#define BOX_SIZE 5.0f
+#define BOX_SIZE 7.0f
 
 /*!
  * Computes the direct illumination incident on a specified point.
@@ -85,7 +85,7 @@ __kernel void raytrace(__global float *out, __constant Camera const *camera,
             float4 extinction = {0.0f, 0.0f, 0.0f, 0.0f};
             bool emissiveContributes = true;
 
-            for (int rayDepth = 0; rayDepth <= 6; ++rayDepth)
+            for (int rayDepth = 0; rayDepth <= maxDepth; ++rayDepth)
             {
                 int hitIdx = sceneIntersection( &ray, spheres, sphereCount);
                 if (hitIdx >= 0)
@@ -131,13 +131,13 @@ __kernel void raytrace(__global float *out, __constant Camera const *camera,
                         const float pdf = samplePhong(&ray, &hit, hitSphere->specExp,r1, r2);
                         emissiveContributes = true;
                         /* cos (Wi) term */
-                        transmissionColor *= fabs(ray.dx * hit.surface_normal.x + ray.dy * hit.surface_normal.y + ray.dz * hit.surface_normal.z) / pdf;
+                        transmissionColor *= fabs(ray.dx * hit.surface_normal.x + ray.dy * hit.surface_normal.y + ray.dz * hit.surface_normal.z);// / pdf;
                     }
                     else if (p < (hitSphere->ks + hitSphere->diffuse.w))
                     {
                         const float pdf = sampleLambert(&ray, &hit, r1, r2);
                         emissiveContributes = false;
-                        /* cos (Wi) term * diffuse / PDF */
+                        /* cos (Wi) * diffuse / PDF */
                         transmissionColor *= hitSphere->diffuse * (ray.dx * hit.surface_normal.x + ray.dy * hit.surface_normal.y + ray.dz * hit.surface_normal.z) ;// pdf;
                     }
                     else if (p < (hitSphere->ks + hitSphere->diffuse.w + hitSphere->extinction.w))
@@ -165,12 +165,11 @@ __kernel void raytrace(__global float *out, __constant Camera const *camera,
                         boxNormal(&ray, &hit, (float4)0.0f, BOX_SIZE, BOX_SIZE, BOX_SIZE); /* populate surface_normal */
 
                         float4 direct = directIllumination(&hit, spheres, sphereCount, &seed);
-                        pixelColor += transmissionColor * direct * evaluateLambert(); /* Diffuse BRDF */
+                        pixelColor += direct * transmissionColor * evaluateLambert(); /* Diffuse BRDF */
 
                         const float pdf = sampleLambert(&ray, &hit, frand(&seed), frand(&seed));
                         transmissionColor *= fabs(ray.dx * hit.surface_normal.x + ray.dy * hit.surface_normal.y + ray.dz * hit.surface_normal.z) ;// pdf;
                         emissiveContributes = false;
-
                     }
                     else
                     {

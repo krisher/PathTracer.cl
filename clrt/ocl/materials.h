@@ -25,7 +25,7 @@ float4 cosSampleHemisphere(const float r1, const float r2) {
      * 0..2pi
      */
     const float cos_theta = sqrt(1.0f - r1);
-    const float sin_theta = sqrt(1.0 - cos_theta * cos_theta);
+    const float sin_theta = sqrt(1.0f - cos_theta * cos_theta);
     const float phi = M_2PI_F * r2;
 
     return (float4) (sin_theta * cos(phi), sin_theta * sin(phi), cos_theta, M_1_PI_F
@@ -145,7 +145,7 @@ float sampleLambert(ray_t *ray, const hit_info_t *hit, float const r1,
     const float4 tangentY = cross(hit->surface_normal, tangentX);
 
     /*
-     * Transform ray direction from z==normal to the orientation of the geometry.
+     * Transform ray direction to the orientation of the geometry.
      */
     ray->dx = tangentX.x * hemisphereSample.x + tangentY.x * hemisphereSample.y
             + hit->surface_normal.x * hemisphereSample.z;
