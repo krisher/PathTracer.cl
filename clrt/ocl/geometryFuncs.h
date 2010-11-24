@@ -68,7 +68,7 @@ void boxNormal(const ray_t *ray, hit_info_t *hit, float4 const center,
 
 float intersectsBox(const ray_t *ray, const float4 center, const float xSize,
         const float ySize, const float zSize) {
-    float nearIsect = 0;
+    float nearIsect = 0.0f;
     float farIsect = INFINITY;
 
     float t1, t2;
@@ -124,7 +124,7 @@ float intersectsBox(const ray_t *ray, const float4 center, const float xSize,
         }
     }
     if (nearIsect > farIsect || farIsect < 0) {
-        return 0;
+        return INFINITY;
     }
     if (nearIsect < 0) {
         return farIsect;
