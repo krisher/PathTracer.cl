@@ -192,7 +192,7 @@ void RayTracerCL::updateCLCamera() {
     uint pixelCount = width * height * 2;
     uint seeds[pixelCount];
     for (uint i = 0; i < pixelCount; ++i) {
-        seeds[i] = rand();
+        seeds[i] = rand(); //OK to use consecutive rand values since kernel is using a different sequence algorithm.
         if (seeds[i] < 2)
             seeds[i] = 2;
     }
@@ -204,13 +204,6 @@ void RayTracerCL::updateCLCamera() {
     } catch (cl::Error err) {
         std::cout << "Err: " << err.err() << std::endl;
     }
-
-#ifdef _DEBUG_RT
-    //  std::cout << "Camera Changed: " << std::endl;
-    //  std::cout << "\tposition: " << cameraCL.position[0] << ", " << cameraCL.position[1] << ", " << cameraCL.position[2] << std::endl;
-    //  std::cout << "\tview: " << cameraCL.view[0] << ", " << cameraCL.view[1] << ", " << cameraCL.view[2] << std::endl;
-    //  std::cout << "\tup: " << cameraCL.up[0] << ", " << cameraCL.up[1] << ", " << cameraCL.up[2] << std::endl;
-#endif /* _DEBUG_RT */
 
 }
 
@@ -263,13 +256,15 @@ void RayTracerCL::rayTrace(cl_mem *buff, uint const width, uint const height,
         int wgMultipleWidth = ((width & 0x1F) == 0) ? width : ((width
                 & 0xFFFFFFE0) + 0x20);
         /*
-         * And height is a multiple of 6.
+         * Random Notes:
          *
-         * TODO: NVidia QuadroFX 5800 supports 512 work-items per wg (32 x 16), however the ray tracer code uses too many registers
+         * NVidia QuadroFX 5800 supports 512 work-items per wg (32 x 16), however the ray tracer code uses too many registers
          * for 512 items (register file is shared among items in the same group).  6x32 is the minimum value to hide certain latencies
          * when accessing memory or read-after-write registers according to their OpenCL best-practices guide.
          *
-         * Number of suggested work items can be queried for each kernel to get a good value based on hardware capabilities and
+         * NVidia GTX 460 supports 1024 work-items per wg (32x32), but due to register use this maxes out at 32x16 (512).
+         *
+         * Number of suggested work items is queried from OpenCL driver to get a good value based on hardware capabilities and
          * the number of regs actually used by the kernel.
          */
         int wgMutipleHeight = (int) ceil(height / (float) ndRangeSizes[1])
