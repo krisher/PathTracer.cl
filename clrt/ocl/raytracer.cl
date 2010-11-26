@@ -178,7 +178,8 @@ __kernel void raytrace(__global float *out, __constant Camera const *camera,
 				else // No object hit (process hit for box).
 				{
 					float hitDistance = intersectsBox(&ray, (float4)0.0f, BOX_SIZE, BOX_SIZE, BOX_SIZE);
-					if (hitDistance > ray.tmin && hitDistance < ray.tmax)
+					//XXX: with box-only scene setting this to true should have no effect (all rays hit box) but it does!!!
+					if (true || (hitDistance > ray.tmin && hitDistance < ray.tmax))
 					{
 						ray.tmax = hitDistance;
 						hit_info_t hit;
