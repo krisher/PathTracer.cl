@@ -108,21 +108,21 @@ float intersectsBox(const ray_t *ray, const float4 center, const float xSize,
             return 0;
         }
     }
-    if (nearIsect > farIsect || farIsect < 0) {
+    if (nearIsect > farIsect || farIsect < ray->tmin) {
         return INFINITY;
     }
-    if (nearIsect < 0) {
+    if (nearIsect < ray->tmin) {
         return farIsect;
     }
     return nearIsect;
 }
 
-int sceneIntersection( ray_t *ray, __constant const Sphere *geometry, const uint n_geometry)
+int sceneIntersection( ray_t *ray, __constant Sphere *geometry, const uint n_geometry)
 {
     int hitObject = -1;
     for (int sphereNum = 0; sphereNum < n_geometry; ++sphereNum)
     {
-        __constant const Sphere *sphere = &(geometry[sphereNum]);
+        __constant Sphere *sphere = &(geometry[sphereNum]);
         float d = intersectSphere(ray, sphere->center, sphere->radius);
         if (d > ray->tmin && d < ray->tmax)
         {

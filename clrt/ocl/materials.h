@@ -7,10 +7,12 @@
 
 #include "geometryFuncs.h"
 
+#ifndef M_PI_F
 #define M_PI_F 3.14159265358979323846f
 #define M_1_PI_F 0.318309886f
-#define M_2PI_F 6.283185307f
+#endif /* M_PI_F */
 
+#define M_2PI_F 6.283185307f
 /*!
  * \brief Generates a vector sampled from the hemisphere surrounding the positive z axis, with a cosine distribution given two uniform random numbers.
  *
