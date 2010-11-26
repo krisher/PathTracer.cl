@@ -41,4 +41,9 @@ float frand(seed_value_t *seed) {
     return (as_float(bits) - 2.0f) / 2.0f;
 }
 
+
+float strat_rand(seed_value_t *seed, const int s_current, const int s_total) {
+    return (s_current + frand(seed))/(float)s_total;
+}
+
 #endif /* RNG_H */

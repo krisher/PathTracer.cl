@@ -60,6 +60,25 @@ typedef struct
 } vec3;
 
 /*!
+ * \brief Ray structure used in OpenCL.
+ */
+typedef struct {
+    vec3 o;
+    vec3 d;
+    float tmin;
+    float tmax;
+} ray_t;
+
+/*!
+ * \brief Struct to store ray/surface intersection information.
+ */
+typedef struct {
+    float4 hit_pt;
+    float4 surface_normal;
+} hit_info_t;
+
+
+/*!
  * \brief camera model.
  *
  * up, right are normalized, view has the magnitude necessary so that a ray 

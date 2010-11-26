@@ -1,24 +1,9 @@
 #ifndef GEOMETRY_FUNCS_H
 #define GEOMETRY_FUNCS_H
 
-/*!
- * \brief Ray structure used in OpenCL.
- */
-typedef struct {
-    float ox;
-    float oy;
-    float oz;
-    float dx;
-    float dy;
-    float dz;
-    float tmin;
-    float tmax;
-} ray_t;
+#include "geometry.h"
 
-typedef struct {
-    float4 hit_pt;
-    float4 surface_normal;
-} hit_info_t;
+#define DOT(a,b) (a.x * b.x + a.y * b.y + a.z * b.z)
 
 /*!
  * \brief Ray-Sphere intersection test
@@ -28,11 +13,11 @@ typedef struct {
  * \return The distance to intersection, or 0 if there was no intersection.
  */
 float intersectSphere(const ray_t *ray, float4 const center, float const radius) {
-    float tOx = ray->ox - center.x;
-    float tOy = ray->oy - center.y;
-    float tOz = ray->oz - center.z;
+    float tOx = ray->o.x - center.x;
+    float tOy = ray->o.y - center.y;
+    float tOz = ray->o.z - center.z;
     float originFromCenterDistSq = tOx * tOx + tOy * tOy + tOz * tOz;
-    float B = tOx * ray->dx + tOy * ray->dy + tOz * ray->dz;
+    float B = tOx * ray->d.x + tOy * ray->d.y + tOz * ray->d.z;
     float D = B * B - (originFromCenterDistSq - radius * radius);
     if (D > 0) {
         float sqrtD = sqrt(D);
@@ -61,8 +46,8 @@ void boxNormal(const ray_t *ray, hit_info_t *hit, float4 const center,
     /*
      * Normal should point toward ray origin.
      */
-    if (hit->surface_normal.x * ray->dx + hit->surface_normal.y * ray->dy
-            + hit->surface_normal.z * ray->dz > 0.0f)
+    if (hit->surface_normal.x * ray->d.x + hit->surface_normal.y * ray->d.y
+            + hit->surface_normal.z * ray->d.z > 0.0f)
         hit->surface_normal *= -1.0f;
 }
 
@@ -72,23 +57,23 @@ float intersectsBox(const ray_t *ray, const float4 center, const float xSize,
     float farIsect = INFINITY;
 
     float t1, t2;
-    if (ray->dx != 0) {
-        t1 = (center.x - xSize - ray->ox) / ray->dx;
-        t2 = (center.x + xSize - ray->ox) / ray->dx;
+    if (ray->d.x != 0) {
+        t1 = (center.x - xSize - ray->o.x) / ray->d.x;
+        t2 = (center.x + xSize - ray->o.x) / ray->d.x;
         nearIsect = min(t1, t2);
         farIsect = max(t1, t2);
     } else {
         /*
          * Ray runs parallel to x, can only intersect if origin x is between +/- xSize
          */
-        if (ray->ox > (center.x + xSize) || ray->ox < (center.x - xSize)) {
+        if (ray->o.x > (center.x + xSize) || ray->o.x < (center.x - xSize)) {
             return 0;
         }
     }
 
-    if (ray->dy != 0) {
-        t1 = (center.y - ySize - ray->oy) / ray->dy;
-        t2 = (center.y + ySize - ray->oy) / ray->dy;
+    if (ray->d.y != 0) {
+        t1 = (center.y - ySize - ray->o.y) / ray->d.y;
+        t2 = (center.y + ySize - ray->o.y) / ray->d.y;
         if (t1 > t2) {
             nearIsect = max(t2, nearIsect);
             farIsect = min(t1, farIsect);
@@ -100,14 +85,14 @@ float intersectsBox(const ray_t *ray, const float4 center, const float xSize,
         /*
          * Ray runs parallel to y, can only intersect if origin y is between +/- ySize
          */
-        if (ray->oy > (center.y + ySize) || ray->oy < (center.y - ySize)) {
+        if (ray->o.y > (center.y + ySize) || ray->o.y < (center.y - ySize)) {
             return 0;
         }
     }
 
-    if (ray->dz != 0) {
-        t1 = (center.z-zSize - ray->oz) / ray->dz;
-        t2 = (center.z+zSize - ray->oz) / ray->dz;
+    if (ray->d.z != 0) {
+        t1 = (center.z-zSize - ray->o.z) / ray->d.z;
+        t2 = (center.z+zSize - ray->o.z) / ray->d.z;
         if (t1 > t2) {
             nearIsect = max(t2, nearIsect);
             farIsect = min(t1, farIsect);
@@ -119,7 +104,7 @@ float intersectsBox(const ray_t *ray, const float4 center, const float xSize,
         /*
          * Ray runs parallel to z, can only intersect if origin z is between +/- zSize
          */
-        if (ray->oz + center.z > zSize || ray->oz + center.z < -zSize) {
+        if (ray->o.z + center.z > zSize || ray->o.z + center.z < -zSize) {
             return 0;
         }
     }

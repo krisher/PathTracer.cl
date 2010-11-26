@@ -11,8 +11,6 @@
 
 /* Small floating point number used to offset ray origins to avoid roundoff error issues. */
 #define SMALL_F 1e-5f
-/* Stratified pixel sampling in a jittered regular grid. */
-#define JITTER(pixel, sample, sampleRate, rand) (((((float)sample) + rand) / (float)sampleRate) + (float)pixel)
 /*
  * Half-width of the cube that encloses the scene.
  */
@@ -28,9 +26,9 @@
  */
 float4 directIllumination(const hit_info_t *hit, __constant Sphere *geometry, const uint n_geometry, seed_value_t *seed) {
 	ray_t ray;
-	ray.ox = hit->hit_pt.x + hit->surface_normal.x * SMALL_F;
-	ray.oy = hit->hit_pt.y + hit->surface_normal.y * SMALL_F;
-	ray.oz = hit->hit_pt.z + hit->surface_normal.z * SMALL_F;
+	ray.o.x = hit->hit_pt.x + hit->surface_normal.x * SMALL_F;
+	ray.o.y = hit->hit_pt.y + hit->surface_normal.y * SMALL_F;
+	ray.o.z = hit->hit_pt.z + hit->surface_normal.z * SMALL_F;
 	float4 irradiance = (float4)0.0f;
 	for (uint sphereNum = 0; sphereNum < n_geometry; ++sphereNum)
 	{
@@ -40,7 +38,7 @@ float4 directIllumination(const hit_info_t *hit, __constant Sphere *geometry, co
 			sphereEmissiveRadiance(&ray, light->center, light->radius, frand(seed), frand(seed));
 			irradiance += light->emission;
 			if (visibilityTest(&ray, geometry, n_geometry)) {
-				const float cosWi = ray.dx * hit->surface_normal.x + ray.dy * hit->surface_normal.y + ray.dz * hit->surface_normal.z;
+				const float cosWi = ray.d.x * hit->surface_normal.x + ray.d.y * hit->surface_normal.y + ray.d.z * hit->surface_normal.z;
 				if (cosWi > 0)
 				{
 					irradiance += light->emission * cosWi;
@@ -100,8 +98,8 @@ __kernel void raytrace(__global float *out, __constant Camera const *camera,
 			//TODO: sample camera aperture for DoF
 			//TODO: There appears to be a bug with the initial hit on some surfaces, may be due to bad eye-rays.
 			float4 rdirection = normalize(camera->view +
-					camera->right * (float)(JITTER(x, sx, sampleRate, frand(&seed)) - ((float)imWidth)/2.0f) +
-					camera->up * (float)(JITTER(y, sy, sampleRate, frand(&seed)) - ((float)imHeight)/2.0f));
+					camera->right * ((float)(x + strat_rand(&seed, sx, sampleRate)) - ((float)imWidth)/2.0f) +
+					camera->up * ((float)(y + strat_rand(&seed, sy, sampleRate)) - ((float)imHeight)/2.0f));
 			ray_t ray = {camera->position.x, camera->position.y, camera->position.z, rdirection.x, rdirection.y, rdirection.z, SMALL_F, INFINITY};
 
 			float4 transmissionColor = {1.0f, 1.0f, 1.0f, 0.0f}; //All light is initially transmitted.
@@ -129,7 +127,7 @@ __kernel void raytrace(__global float *out, __constant Camera const *camera,
 					 * Update origin to new intersect point
 					 */
 					hit_info_t hit;
-					hit.hit_pt = (float4)(ray.ox + ray.dx * ray.tmax, ray.oy + ray.dy * ray.tmax, ray.oz + ray.dz * ray.tmax, 0.0f);
+					hit.hit_pt = (float4)(ray.o.x + ray.d.x * ray.tmax, ray.o.y + ray.d.y * ray.tmax, ray.o.z + ray.d.z * ray.tmax, 0.0f);
 					hit.surface_normal = (hit.hit_pt - hitSphere->center) / hitSphere->radius;
 
 					/*
@@ -154,14 +152,14 @@ __kernel void raytrace(__global float *out, __constant Camera const *camera,
 						const float pdf = samplePhong(&ray, &hit, hitSphere->specExp,r1, r2);
 						emissiveContributes = true;
 						/* cos (Wi) term */
-						transmissionColor *= fabs(ray.dx * hit.surface_normal.x + ray.dy * hit.surface_normal.y + ray.dz * hit.surface_normal.z);// / pdf;
+						transmissionColor *= fabs(ray.d.x * hit.surface_normal.x + ray.d.y * hit.surface_normal.y + ray.d.z * hit.surface_normal.z);// / pdf;
 					}
 					else if (p < (hitSphere->ks + hitSphere->diffuse.w))
 					{
 						const float pdf = sampleLambert(&ray, &hit, r1, r2);
 						emissiveContributes = false;
 						/* cos (Wi) * diffuse / PDF */
-						transmissionColor *= hitSphere->diffuse * (ray.dx * hit.surface_normal.x + ray.dy * hit.surface_normal.y + ray.dz * hit.surface_normal.z);// pdf;
+						transmissionColor *= hitSphere->diffuse * (ray.d.x * hit.surface_normal.x + ray.d.y * hit.surface_normal.y + ray.d.z * hit.surface_normal.z);// pdf;
 					}
 					else if (p < (hitSphere->ks + hitSphere->diffuse.w + hitSphere->extinction.w))
 					{
@@ -184,7 +182,7 @@ __kernel void raytrace(__global float *out, __constant Camera const *camera,
 					{
 						ray.tmax = hitDistance;
 						hit_info_t hit;
-						hit.hit_pt = (float4)(ray.ox + ray.dx * ray.tmax, ray.oy + ray.dy * ray.tmax, ray.oz + ray.dz * ray.tmax, 0.0f);
+						hit.hit_pt = (float4)(ray.o.x + ray.d.x * ray.tmax, ray.o.y + ray.d.y * ray.tmax, ray.o.z + ray.d.z * ray.tmax, 0.0f);
 						boxNormal(&ray, &hit, (float4)0.0f, BOX_SIZE, BOX_SIZE, BOX_SIZE); /* populate surface_normal */
 
 //						if (rayDepth > 0) {
@@ -193,10 +191,10 @@ __kernel void raytrace(__global float *out, __constant Camera const *camera,
 //						}
 
 						/*
-						 * Error Here!
+						 * Error Here!?
 						 */
 						const float pdf = sampleLambert(&ray, &hit, frand(&seed), frand(&seed));
-						transmissionColor *= (ray.dx * hit.surface_normal.x + ray.dy * hit.surface_normal.y + ray.dz * hit.surface_normal.z);// / pdf;
+						transmissionColor *= (ray.d.x * hit.surface_normal.x + ray.d.y * hit.surface_normal.y + ray.d.z * hit.surface_normal.z);// / pdf;
 						emissiveContributes = false;
 					}
 					else
