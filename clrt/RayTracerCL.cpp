@@ -72,7 +72,7 @@ void RayTracerCL::init(cl::Platform const &platform) {
     platform.getDevices(CL_DEVICE_TYPE_ALL, &clDevices);
 
     cl::Device device;
-    createDefaultContext(&platform, context, device);
+    createDefaultContext(&platform, context, device, glSharing);
 
     /*
      * Load CL files from disk, create a program from them, and build them for our selected device.
@@ -294,7 +294,7 @@ const cl::Context RayTracerCL::getCLContext() {
 }
 
 void RayTracerCL::createDefaultContext(const cl::Platform *platform,
-        cl::Context &context, cl::Device &device) {
+        cl::Context &context, cl::Device &device, bool &glSharing) {
     cl_context_properties cps[7] = {
             CL_CONTEXT_PLATFORM,
             (cl_context_properties) (*platform)(),
@@ -342,7 +342,7 @@ void RayTracerCL::createDefaultContext(const cl::Platform *platform,
         context = cl::Context(CL_DEVICE_TYPE_CPU, cps, NULL, NULL, NULL);
         glSharing = false;
     }
-    device = context.clDevices[0];
+    device = context.getInfo<CL_CONTEXT_DEVICES>()[0];
 #endif /* _DEBUG_RT */
 }
 

@@ -1,4 +1,4 @@
-#pragma OPENCL EXTENSION cl_amd_printf : enable
+//#pragma OPENCL EXTENSION cl_amd_printf : enable
 /*!
  * \file raytracer.cl
  * \brief OpenCL based Path-Tracer kernel.
@@ -9,8 +9,6 @@
 #include "materials.h"
 #include "geometryFuncs.h"
 
-/* Small floating point number used to offset ray origins to avoid roundoff error issues. */
-#define SMALL_F 1e-5f
 /*
  * Half-width of the cube that encloses the scene.
  */
@@ -183,20 +181,35 @@ __kernel void raytrace(__global float *out, __constant Camera *camera,
                         ray.tmax = hitDistance;
                         hit_info_t hit;
                         hit.hit_pt = (float4)(ray.o.x + ray.d.x * ray.tmax, ray.o.y + ray.d.y * ray.tmax, ray.o.z + ray.d.z * ray.tmax, 0.0f);
-                        boxNormal(&ray, &hit, (float4)0.0f, BOX_SIZE, BOX_SIZE, BOX_SIZE); /* populate surface_normal */
+                        boxNormal(&ray, &hit, BOX_SIZE, BOX_SIZE, BOX_SIZE); /* populate surface_normal */
 
                         float4 direct = directIllumination(&hit, spheres, sphereCount, &seed);
                         pixelColor += direct * transmissionColor * evaluateLambert(); /* Diffuse BRDF */
 
+                        //XXX: Debug
+//                        ray_t ray_inc = ray;
+
                         const float pdf = sampleLambert(&ray, &hit, frand(&seed), frand(&seed));
+
+                        //XXX: Debug
+//                        if ((ray.o.x == BOX_SIZE && ray.d.x > 0)||
+//                                (ray.o.y == BOX_SIZE && ray.d.y > 0)||
+//                                (ray.o.z == BOX_SIZE && ray.d.z > 0)){
+//                            printf("Bad wi direction (%d): hit_dist (%f)  tmin (%f)  tmax (%f)  o (%f, %f, %f)  d (%f, %f, %f)\n",rayDepth, hitDistance, ray.tmin, ray.tmax, ray.o.x, ray.o.y, ray.o.z, ray.d.x, ray.d.y, ray.d.z);
+//                            printf("  wo: hit_dist (%f)  tmin (%f)  tmax (%f)  o (%f, %f, %f)  d (%f, %f, %f)\n",hitDistance, ray_inc.tmin, ray_inc.tmax, ray_inc.o.x, ray_inc.o.y, ray_inc.o.z, ray_inc.d.x, ray_inc.d.y, ray_inc.d.z);
+//                            printf("  surface normal: (%f, %f, %f)\n", hit.surface_normal.x, hit.surface_normal.y, hit.surface_normal.z);
+//                        }
+
                         transmissionColor *= (ray.d.x * hit.surface_normal.x + ray.d.y * hit.surface_normal.y + ray.d.z * hit.surface_normal.z); // / pdf;
                         transmissionColor = (float4)0.0f;
                         emissiveContributes = false;
                     }
                     else
                     {
-                        printf("Ray Miss: hit_dist (%f)  tmin (%f)  tmax (%f)  o (%f, %f, %f)  d (%f, %f, %f)\n", hitDistance, ray.tmin, ray.tmax, ray.o.x, ray.o.y, ray.o.z, ray.d.x, ray.d.y, ray.d.z);
-                        pixelColor.x = 100.0f;
+                        //XXX: Debug
+//                        printf("Ray Miss bounce (%d): hit_dist (%f)  tmin (%f)  tmax (%f)  o (%f, %f, %f)  d (%f, %f, %f)\n",rayDepth, hitDistance, ray.tmin, ray.tmax, ray.o.x, ray.o.y, ray.o.z, ray.d.x, ray.d.y, ray.d.z);
+//                        pixelColor.x = 100.0f;
+
                         rayDepth = maxDepth + 1; // Causes path to terminate.
                     }
                 }

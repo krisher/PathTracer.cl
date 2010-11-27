@@ -26,29 +26,19 @@ float intersectSphere(const ray_t *ray, float4 const center, float const radius)
     return 0.0f;
 }
 
-void boxNormal(const ray_t *ray, hit_info_t *hit, float4 const center,
+void boxNormal(const ray_t *ray, hit_info_t *hit,
         float const xSize, float const ySize, float const zSize) {
     const float4 hitPt = hit->hit_pt;
     // Figure out which face the intersection occurred on
-    float xDist = fabs(fabs(hitPt.x) - xSize);
-    float yDist = fabs(fabs(hitPt.y) - ySize);
-    float zDist = fabs(fabs(hitPt.z) - zSize);
-    if (xDist < yDist) {
-        if (xDist < zDist)
-            hit->surface_normal = (float4) (1.0f, 0.0f, 0.0f, 0.0f);
-        else
-            hit->surface_normal = (float4) (0.0f, 0.0f, 1.0f, 0.0f);
-    } else if (yDist < zDist) {
-        hit->surface_normal = (float4) (0.0f, 1.0f, 0.0f, 0.0f);
-    } else {
-        hit->surface_normal = (float4) (0.0f, 0.0f, 1.0f, 0.0f);
-    }
-    /*
-     * Normal should point toward ray origin.
-     */
-    if (hit->surface_normal.x * ray->d.x + hit->surface_normal.y * ray->d.y
-            + hit->surface_normal.z * ray->d.z > 0.0f)
-        hit->surface_normal *= -1.0f;
+    const float x_side_dist = fabs(fabs(hitPt.x) - xSize);
+    const float y_side_dist = fabs(fabs(hitPt.y) - ySize);
+    const float z_side_dist = fabs(fabs(hitPt.z) - zSize);
+    if (x_side_dist < y_side_dist && x_side_dist < z_side_dist)
+        hit->surface_normal = (float4)(-hitPt.x / fabs(hitPt.x), 0.0f, 0.0f, 0.0f);
+    else if (y_side_dist < z_side_dist)
+        hit->surface_normal = (float4)( 0.0f,- hitPt.y / fabs(hitPt.y), 0.0f, 0.0f);
+    else
+        hit->surface_normal = (float4)( 0.0f, 0.0f,- hitPt.z / fabs(hitPt.z), 0.0f);
 }
 
 float intersectsBox(const ray_t *ray, const float4 center, const float xSize,

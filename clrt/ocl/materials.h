@@ -114,7 +114,7 @@ float samplePhong(ray_t *ray, const hit_info_t *hit, float const specExp,
     ray->o.y = hit->hit_pt.y;
     ray->o.z = hit->hit_pt.z;
 
-    ray->tmin = 1e-5f;
+    ray->tmin = SMALL_F;
     ray->tmax = INFINITY;
 
     return 1.0f;
@@ -172,7 +172,7 @@ float sampleLambert(ray_t *ray, const hit_info_t *hit, float const r1,
     ray->o.y = hit->hit_pt.y;
     ray->o.z = hit->hit_pt.z;
 
-    ray->tmin = 1e-5f;
+    ray->tmin = SMALL_F;
     ray->tmax = INFINITY;
 
     return hemisphereSample.w;
@@ -322,8 +322,8 @@ float sphereEmissiveRadiance(ray_t *ray, float4 const sphereCenter,
     ray->d.x = direction.x;
     ray->d.y = direction.y;
     ray->d.z = direction.z;
-    ray->tmin = 1e-5f;
-    ray->tmax = intersectSphere(ray, sphereCenter, radius) - 1e-5f;
+    ray->tmin = SMALL_F;
+    ray->tmax = intersectSphere(ray, sphereCenter, radius) - SMALL_F;
 
     /*
      * Multiply by 1/distribution of light samples over the hemisphere around the hit point.

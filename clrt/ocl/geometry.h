@@ -49,6 +49,9 @@ typedef union
 }float4;
 #endif /* __cplusplus */
 
+
+/* Small floating point number used to offset ray origins to avoid roundoff error issues. */
+#define SMALL_F 1e-4f
 /*!
  * \brief 3D vector storage
  */

@@ -120,7 +120,7 @@ public:
      * \brief Creates a new cl::Context on the specified platform.  The context, and selected device are returned via paramters.
      */
     static void createDefaultContext(const cl::Platform *platform,
-            cl::Context &context, cl::Device &device);
+            cl::Context &context, cl::Device &device, bool &glSharing);
 
     /*!
      * \brief Loads the contents of the specified file into memory as a std::string.
