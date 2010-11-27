@@ -24,7 +24,7 @@
 #include "Timing.h"
 
 //Comment this out to disable debugging and timing info
-#define _DEBUG_RT
+//#define _DEBUG_RT
 
 #define RAYTRACER_CL "ocl/raytracer.cl"
 #ifdef _DEBUG_RT
