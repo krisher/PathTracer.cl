@@ -92,7 +92,7 @@ int main(void)
   window.rayTracer.setSampleRate(2);
   window.rayTracer.setMaxPathDepth(6);
   window.rayTracer.setCameraSpherical(gmtl::Point3f(0,-4,-0), 40.0f, 105.0f, 6);
-  window.setProgressive(20000);
+  window.setProgressive(200);
 
   glutMainLoop();
 

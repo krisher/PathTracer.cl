@@ -76,8 +76,8 @@ typedef struct {
  * \brief Struct to store ray/surface intersection information.
  */
 typedef struct {
-    float4 hit_pt;
-    float4 surface_normal;
+    vec3 hit_pt;
+    vec3 surface_normal;
 } hit_info_t;
 
 

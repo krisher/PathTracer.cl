@@ -52,8 +52,8 @@ float samplePhong(ray_t *ray, const hit_info_t *hit, float const specExp,
     /*
      *
      */
-    float4 surfaceNormal = hit->surface_normal;
-    float4 sampleDirection = (float4) (ray->d.x, ray->d.y, ray->d.z, 0.0f);
+    float4 surfaceNormal = as_float4(hit->surface_normal);
+    float4 sampleDirection = as_float4(ray->d);
     if (dot(sampleDirection, surfaceNormal) > 0.0f) {
         surfaceNormal *= -1.0f;
     }
@@ -140,32 +140,17 @@ float sampleLambert(ray_t *ray, const hit_info_t *hit, float const r1,
     /*
      * Construct orthonormal basis with surface_normal, and arbitrary tangent vectors.
      */
-    float4 tangentX;
-    tangentX.w = 0;
-    if (fabs(hit->surface_normal.y) > 0.9f) {
-        tangentX.x = 0.0f;
-        tangentX.y = -hit->surface_normal.z;
-        tangentX.z = hit->surface_normal.y;
-    } else {
-        tangentX.x = hit->surface_normal.z;
-        tangentX.y = 0.0f;
-        tangentX.z = -hit->surface_normal.x;
-    }
-    tangentX *= 1.0f / sqrt(tangentX.x * tangentX.x + tangentX.y * tangentX.y
-            + tangentX.z * tangentX.z);
-    float4 tangentY = cross(hit->surface_normal, tangentX);
-
-    tangentX *= hemisphereSample.x;
-    tangentY *= hemisphereSample.y;
+    vec3 tangentX = perpendicular_vector(hit->surface_normal);
+    vec3 tangentY = cross(hit->surface_normal, tangentX);
 
     /*
      * Transform ray direction to the orientation of the geometry.
      */
-    ray->d.x = tangentX.x + tangentY.x + hit->surface_normal.x
+    ray->d.x = tangentX.x * hemisphereSample.x + tangentY.x * hemisphereSample.y + hit->surface_normal.x
             * hemisphereSample.z;
-    ray->d.y = tangentX.y + tangentY.y + hit->surface_normal.y
+    ray->d.y = tangentX.y * hemisphereSample.x + tangentY.y * hemisphereSample.y + hit->surface_normal.y
             * hemisphereSample.z;
-    ray->d.z = tangentX.z + tangentY.z + hit->surface_normal.z
+    ray->d.z = tangentX.z * hemisphereSample.x + tangentY.z * hemisphereSample.y + hit->surface_normal.z
             * hemisphereSample.z;
 
     ray->o.x = hit->hit_pt.x;
@@ -284,11 +269,14 @@ bool sampleRefraction(float4 *sampleDirection, float4 const *surfaceNormal,
 float sphereEmissiveRadiance(ray_t *ray, float4 const sphereCenter,
         float const radius, float const r1, float const r2) {
 
-    float4 direction = (float4) (sphereCenter.x - ray->o.x, sphereCenter.y
-            - ray->o.y, sphereCenter.z - ray->o.z, 0.0f);
+    vec3 direction = (vec3) {sphereCenter.x - ray->o.x, sphereCenter.y
+            - ray->o.y, sphereCenter.z - ray->o.z};
+
     const float light_dist_inv = rsqrt(direction.x * direction.x + direction.y
             * direction.y + direction.z * direction.z);
-    direction *= light_dist_inv;
+    direction.x *= light_dist_inv;
+    direction.y *= light_dist_inv;
+    direction.z *= light_dist_inv;
 
     /*
      * The maximum angle from originToCenter for a ray eminating from origin
@@ -308,20 +296,15 @@ float sphereEmissiveRadiance(ray_t *ray, float4 const sphereCenter,
     /*
      * Construct an orthonormal basis around the direction vector
      */
-    float4 tangentX = (float4) (0.0f, 1.0f, 0.0f, 0.0f);
-    if (fabs(dot(tangentX, direction)) > 0.9f) {
-        tangentX.x = 1.0f;
-        tangentX.y = 0.0f;
-    }
-    tangentX = normalize(cross(tangentX, direction));
-    const float4 tangentY = cross(direction, tangentX);
+    const vec3 tangentX = perpendicular_vector(direction);
+    const vec3 tangentY = cross(direction, tangentX);
+    const float tangentX_scale = cos(phi) * sin_theta;
+    const float tangentY_scale = sin(phi) * sin_theta;
 
-    direction = tangentX * cos(phi) * sin_theta + tangentY * sin(phi)
-            * sin_theta + direction * cos_theta;
+    ray->d.x = tangentX.x * tangentX_scale + tangentY.x * tangentY_scale + direction.x * cos_theta;
+    ray->d.y = tangentX.y * tangentX_scale + tangentY.y * tangentY_scale + direction.y * cos_theta;
+    ray->d.z = tangentX.z * tangentX_scale + tangentY.z * tangentY_scale + direction.z * cos_theta;
 
-    ray->d.x = direction.x;
-    ray->d.y = direction.y;
-    ray->d.z = direction.z;
     ray->tmin = SMALL_F;
     ray->tmax = intersectSphere(ray, sphereCenter, radius) - SMALL_F;
 

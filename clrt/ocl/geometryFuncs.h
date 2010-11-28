@@ -26,19 +26,22 @@ float intersectSphere(const ray_t *ray, float4 const center, float const radius)
     return 0.0f;
 }
 
-void boxNormal(const ray_t *ray, hit_info_t *hit,
-        float const xSize, float const ySize, float const zSize) {
-    const float4 hitPt = hit->hit_pt;
+void boxNormal(const ray_t *ray, hit_info_t *hit, float const xSize,
+        float const ySize, float const zSize) {
+    const vec3 hitPt = hit->hit_pt;
     // Figure out which face the intersection occurred on
     const float x_side_dist = fabs(fabs(hitPt.x) - xSize);
     const float y_side_dist = fabs(fabs(hitPt.y) - ySize);
     const float z_side_dist = fabs(fabs(hitPt.z) - zSize);
     if (x_side_dist < y_side_dist && x_side_dist < z_side_dist)
-        hit->surface_normal = (float4)(-hitPt.x / fabs(hitPt.x), 0.0f, 0.0f, 0.0f);
+        hit->surface_normal
+                = (vec3) {-hitPt.x / fabs(hitPt.x), 0.0f, 0.0f};
     else if (y_side_dist < z_side_dist)
-        hit->surface_normal = (float4)( 0.0f,- hitPt.y / fabs(hitPt.y), 0.0f, 0.0f);
+        hit->surface_normal
+                = (vec3) {0.0f, -hitPt.y / fabs(hitPt.y), 0.0f};
     else
-        hit->surface_normal = (float4)( 0.0f, 0.0f,- hitPt.z / fabs(hitPt.z), 0.0f);
+        hit->surface_normal
+                = (vec3) {0.0f, 0.0f, -hitPt.z / fabs(hitPt.z)};
 }
 
 float intersectsBox(const ray_t *ray, const float4 center, const float xSize,
@@ -56,7 +59,7 @@ float intersectsBox(const ray_t *ray, const float4 center, const float xSize,
         /*
          * Ray runs parallel to x, can only intersect if origin x is between +/- xSize
          */
-        if (ray->o.x > (center.x + xSize) || ray->o.x < (center.x - xSize)) {
+        if (fabs(ray->o.x - center.x) > xSize) {
             return 0;
         }
     }
@@ -75,14 +78,14 @@ float intersectsBox(const ray_t *ray, const float4 center, const float xSize,
         /*
          * Ray runs parallel to y, can only intersect if origin y is between +/- ySize
          */
-        if (ray->o.y > (center.y + ySize) || ray->o.y < (center.y - ySize)) {
+        if (fabs(ray->o.y - center.y) > ySize) {
             return 0;
         }
     }
 
     if (ray->d.z != 0) {
-        t1 = (center.z-zSize - ray->o.z) / ray->d.z;
-        t2 = (center.z+zSize - ray->o.z) / ray->d.z;
+        t1 = (center.z - zSize - ray->o.z) / ray->d.z;
+        t2 = (center.z + zSize - ray->o.z) / ray->d.z;
         if (t1 > t2) {
             nearIsect = max(t2, nearIsect);
             farIsect = min(t1, farIsect);
@@ -94,7 +97,7 @@ float intersectsBox(const ray_t *ray, const float4 center, const float xSize,
         /*
          * Ray runs parallel to z, can only intersect if origin z is between +/- zSize
          */
-        if (ray->o.z + center.z > zSize || ray->o.z + center.z < -zSize) {
+        if (fabs(ray->o.z - center.z) > zSize) {
             return 0;
         }
     }
@@ -138,6 +141,36 @@ bool visibilityTest(const ray_t *ray, __constant Sphere * geometry, const uint n
         }
     }
     return true;
+}
+
+/*!
+ * \brief calculates a vector that is perpendicular to the specified vector.
+ * \param vec A unit length vector.
+ * \return A unit length vector that is perpendicular to vec.
+ */
+vec3 perpendicular_vector(const vec3 vec) {
+    vec3 tangentX;
+    if (fabs(vec.y) > 0.9f) { //Maximize the probability of taking one branch over the other for better branch coherency.
+        const float inv_len = rsqrt(vec.z * vec.z + vec.y * vec.y);
+        tangentX.x = 0.0f;
+        tangentX.y = -vec.z * inv_len;
+        tangentX.z = vec.y * inv_len;
+    } else {
+        const float inv_len = rsqrt(vec.z * vec.z + vec.x * vec.x);
+        tangentX.x = vec.z * inv_len;
+        tangentX.y = 0.0f;
+        tangentX.z = -vec.x * inv_len;
+    }
+    return tangentX;
+}
+
+vec3 __OVERLOADABLE__ cross(const vec3 v1, const vec3 v2) {
+    return (vec3) {v1.y * v2.z - v1.z * v2.y, v1.z * v2.x - v1.x * v2.z, v1.x
+            * v2.y - v1.y * v2.x};
+}
+
+float4 __OVERLOADABLE__ as_float4(vec3 vec) {
+    return (float4)(vec.x, vec.y, vec.z, 0.0f);
 }
 
 #endif /* GEOMETRY_FUNCS_H */

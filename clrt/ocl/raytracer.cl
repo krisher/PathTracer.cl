@@ -125,8 +125,10 @@ __kernel void raytrace(__global float *out, __constant Camera *camera,
                      * Update origin to new intersect point
                      */
                     hit_info_t hit;
-                    hit.hit_pt = (float4)(ray.o.x + ray.d.x * ray.tmax, ray.o.y + ray.d.y * ray.tmax, ray.o.z + ray.d.z * ray.tmax, 0.0f);
-                    hit.surface_normal = (hit.hit_pt - hitSphere->center) / hitSphere->radius;
+                    hit.hit_pt = (vec3){ray.o.x + ray.d.x * ray.tmax, ray.o.y + ray.d.y * ray.tmax, ray.o.z + ray.d.z * ray.tmax};
+                    hit.surface_normal.x = (hit.hit_pt.x - hitSphere->center.x) / hitSphere->radius;
+                    hit.surface_normal.y = (hit.hit_pt.y - hitSphere->center.y) / hitSphere->radius;
+                    hit.surface_normal.z = (hit.hit_pt.z - hitSphere->center.z) / hitSphere->radius;
 
                     /*
                      * Sample direct illumination
@@ -180,7 +182,7 @@ __kernel void raytrace(__global float *out, __constant Camera *camera,
                     {
                         ray.tmax = hitDistance;
                         hit_info_t hit;
-                        hit.hit_pt = (float4)(ray.o.x + ray.d.x * ray.tmax, ray.o.y + ray.d.y * ray.tmax, ray.o.z + ray.d.z * ray.tmax, 0.0f);
+                        hit.hit_pt = (vec3){ray.o.x + ray.d.x * ray.tmax, ray.o.y + ray.d.y * ray.tmax, ray.o.z + ray.d.z * ray.tmax};
                         boxNormal(&ray, &hit, BOX_SIZE, BOX_SIZE, BOX_SIZE); /* populate surface_normal */
 
                         float4 direct = directIllumination(&hit, spheres, sphereCount, &seed);

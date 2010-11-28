@@ -24,14 +24,14 @@
 #include "Timing.h"
 
 //Comment this out to disable debugging and timing info
-//#define _DEBUG_RT
+//#define DEBUG
 
 #define RAYTRACER_CL "ocl/raytracer.cl"
-#ifdef _DEBUG_RT
+#ifdef DEBUG
 #define CL_BUILD_OPTS "-Iocl -cl-nv-verbose -g"
-#else /* Not _DEBUG_RT */
+#else /* Not DEBUG */
 #define CL_BUILD_OPTS "-Iocl"
-#endif /* _DEBUG_RT */
+#endif /* DEBUG */
 
 #define D2R(x) (x * M_PI/180.0f)
 
@@ -114,11 +114,11 @@ void RayTracerCL::init(cl::Platform const &platform) {
     ndRangeSizes[0] = 32; //TODO: 32 might be too large
     ndRangeSizes[1] = k_wg_size / ndRangeSizes[0];
 
-#ifdef _DEBUG_RT
+#ifdef DEBUG
     std::cout << "Kernel Max WG Size: " << k_wg_size << std::endl;
     std::cout << "Selected ND Range dimensions: [" << ndRangeSizes[0] << ", "
             << ndRangeSizes[1] << "]." << std::endl;
-#endif /* _DEBUG_RT */
+#endif /* DEBUG */
     /*
      * Create an OpenCL command queue
      */
@@ -127,7 +127,7 @@ void RayTracerCL::init(cl::Platform const &platform) {
 
     glSharing = ::supportsGLSharing(clDevices[0]);
 
-#ifdef _DEBUG_RT
+#ifdef DEBUG
     std::cout << "CL/GL Interoperability: " << (glSharing ? "Yes" : "No")
             << std::endl;
 #endif
@@ -211,9 +211,9 @@ void RayTracerCL::rayTrace(cl_mem *buff, uint const width, uint const height,
         uint const progression) {
     if (width == 0 || height == 0)
         return;
-#ifdef _DEBUG_RT
+#ifdef DEBUG
     clock_t startTicks = clock();
-#endif /* _DEBUG_RT   */
+#endif /* DEBUG   */
     /*
      * Update the camera
      */
@@ -273,10 +273,10 @@ void RayTracerCL::rayTrace(cl_mem *buff, uint const width, uint const height,
                 cl::NDRange(wgMultipleWidth, wgMutipleHeight), cl::NDRange(
                         ndRangeSizes[0], ndRangeSizes[1]));
         cmdQueue.finish();
-#ifdef _DEBUG_RT
+#ifdef DEBUG
         //		std::cout << "CL Render Time: " << timeElapsed(startTicks) << "s"
         //				<< std::endl;
-#endif /* _DEBUG_RT */
+#endif /* DEBUG */
     } catch (cl::Error err) {
         std::cerr << "Error submitting kernel for execution: " << err.err()
                 << std::endl;
@@ -308,7 +308,7 @@ void RayTracerCL::createDefaultContext(const cl::Platform *platform,
     std::vector<cl::Device> clDevices;
     platform->getDevices(CL_DEVICE_TYPE_ALL, &clDevices);
 
-#ifdef _DEBUG_RT
+#ifdef DEBUG
     std::cout << std::endl << "OpenCL Devices: " << std::endl;
     std::vector<cl::Device>::iterator devItr;
     for (devItr = clDevices.begin(); devItr != clDevices.end(); ++devItr) {
@@ -328,7 +328,7 @@ void RayTracerCL::createDefaultContext(const cl::Platform *platform,
     clDevices.clear();
     clDevices.push_back(device);
     context = cl::Context(clDevices, cps, NULL, NULL, NULL);
-#else /* Not _DEBUG_RT */
+#else /* Not DEBUG */
     try {
         context = cl::Context(CL_DEVICE_TYPE_GPU, cps, NULL, NULL, NULL);
     } catch (cl::Error err) {
@@ -343,7 +343,7 @@ void RayTracerCL::createDefaultContext(const cl::Platform *platform,
         glSharing = false;
     }
     device = context.getInfo<CL_CONTEXT_DEVICES>()[0];
-#endif /* _DEBUG_RT */
+#endif /* DEBUG */
 }
 
 cl::Platform *RayTracerCL::getDefaultPlatform() {
@@ -361,7 +361,7 @@ cl::Platform *RayTracerCL::getDefaultPlatform() {
     // FIXME: clean up un-used cl::Platform objects?
     if (platforms.size() > 0) {
         std::vector<cl::Platform>::iterator i;
-#ifdef _DEBUG_RT
+#ifdef DEBUG
         std::cout << "Available Platforms: " << std::endl;
         unsigned int idx = 0;
         for (i = platforms.begin(); i != platforms.end(); ++i) {
@@ -381,7 +381,7 @@ cl::Platform *RayTracerCL::getDefaultPlatform() {
         return new cl::Platform(platforms[platform]);
 #else /* Not debug, choose first platform by default. */
         return new cl::Platform(platforms[0]);
-#endif /* _DEBUG_RT */	      
+#endif /* DEBUG */
     }
     // TODO: throw exception if out not initialized...
     return NULL;
@@ -393,7 +393,7 @@ cl::Platform *RayTracerCL::getDefaultPlatform() {
 std::string *RayTracerCL::loadSourceFromFile(const char *filename) {
     std::ifstream kernel_file(filename);
     if (!kernel_file.is_open()) {
-#ifdef _DEBUG_RT
+#ifdef DEBUG
         std::cerr << "Unable to open file: " << filename << std::endl;
 #endif
         return NULL;
