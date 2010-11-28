@@ -260,7 +260,7 @@ bool sampleRefraction(float4 *sampleDirection, float4 const *surfaceNormal,
  *        the sample point to a point on the light, the distance to that point, and the radiance that is emitted from the light
  *        toward the sample point.
  *
- * \param directionOut On input, ray.o indicates the point to sample illumination at, on output, ray.[d,tmin,tmax] are initialized.
+ * \param ray On input, ray.o indicates the point to sample illumination at, on output, ray.[d,tmin,tmax] are initialized.
  * \param sphereCenter the center of the emissive sphere.
  * \param radius The radius of the emissive sphere.
  * \param r1 A uniform random variable.

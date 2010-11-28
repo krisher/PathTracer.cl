@@ -33,8 +33,8 @@ float4 directIllumination(const hit_info_t *hit, __constant Sphere *geometry, co
         constant Sphere *light = &(geometry[sphereNum]);
         if (light->emission.w != 0)
         {
-            sphereEmissiveRadiance(&ray, light->center, light->radius, frand(seed), frand(seed));
-            irradiance += light->emission;
+            float pdf_inv = sphereEmissiveRadiance(&ray, light->center, light->radius, frand(seed), frand(seed));
+            irradiance += light->emission * pdf_inv;
             if (visibilityTest(&ray, geometry, n_geometry)) {
                 const float cosWi = ray.d.x * hit->surface_normal.x + ray.d.y * hit->surface_normal.y + ray.d.z * hit->surface_normal.z;
                 if (cosWi > 0)
