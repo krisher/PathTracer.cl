@@ -18,7 +18,7 @@
  *
  * \return 4 floats, the vector (x,y,z), and the probability of the sample in the w component.
  */
-float4 cosSampleHemisphere(const float r1, const float r2) {
+float4 cos_sample_hemisphere(const float r1, const float r2) {
     /*
      * Probability of direction Ko = 1/pi * cos(theta) where theta is the
      * angle between the surface normal and Ko.
@@ -32,6 +32,15 @@ float4 cosSampleHemisphere(const float r1, const float r2) {
 
     return (float4) (sin_theta * cos(phi), sin_theta * sin(phi), cos_theta, M_1_PI_F
             * cos_theta);
+}
+
+void init_bounce_ray(ray_t *ray, const hit_info_t *hit) {
+    ray->o.x = hit->hit_pt.x;
+    ray->o.y = hit->hit_pt.y;
+    ray->o.z = hit->hit_pt.z;
+
+    ray->tmin = SMALL_F;
+    ray->tmax = INFINITY;
 }
 
 /*!
@@ -51,6 +60,21 @@ vec3 shading_to_world(const vec3 shading_normal, float s_x, float s_y,
 }
 
 /*!
+ * \brief Change of basis function to convert from world coordinates to shading coordinates (z => shading normal, x,y in tangent plane), given a shading normal vector.
+ *
+ * \param result The vector to store the result in.
+ * \param shading_normal The vector representing the world-space shading normal.
+ *
+ */
+vec3 world_to_shading(const vec3 world_vec, const vec3 shading_normal) {
+    const vec3 tangentX = perpendicular_vector(shading_normal);
+    const vec3 tangentY = cross(shading_normal, tangentX);
+    return (vec3) {DOT(world_vec, tangentX),
+        DOT(world_vec, tangentY),
+        DOT(world_vec, shading_normal)};
+}
+
+/*!
  * \brief Samples irradiance direction for modified Phong specular reflectance model.
  *
  *
@@ -62,21 +86,17 @@ vec3 shading_to_world(const vec3 shading_normal, float s_x, float s_y,
  */
 float samplePhong(ray_t *ray, const hit_info_t *hit, float const specExp,
         float const r1, float const r2) {
-    /*
-     *
-     */
-    float4 surfaceNormal = as_float4(hit->surface_normal);
-    float4 sampleDirection = as_float4(ray->d);
-    if (dot(sampleDirection, surfaceNormal) > 0.0f) {
-        surfaceNormal *= -1.0f;
-    }
-    if (specExp < 100000.0f) {
+    /* convert wi to a vector pointing away from the hit point */
+    ray->d.x *= -1.0;
+    ray->d.y *= -1.0;
+    ray->d.z *= -1.0;
+    /* and into shading coords for easier manipulation */
+    ray->d = world_to_shading(ray->d, hit->surface_normal);
 
-        /*
-         * Compute the mirror reflection vector...
-         */
-        sampleDirection = normalize(sampleDirection + (surfaceNormal) * (-2.0f
-                * dot(sampleDirection, surfaceNormal)));
+    /* Compute the mirror reflection vector, trivial in shading coordinates... */
+    vec3 wi_shading = (vec3) {-ray->d.x, -ray->d.y, ray->d.z};
+    float pdf;
+    if (specExp < 100000.0f) {
 
         /*
          * Exponential cosine weighted sampling about the mirror reflection direction.
@@ -85,52 +105,24 @@ float samplePhong(ray_t *ray, const hit_info_t *hit, float const specExp,
          *
          * Where a is the angle between the output direction and the mirror reflection vector.
          */
-        float const cosA = pow(r1, 1.0f / (specExp + 1.0f));
+        float const cos_a = pow(r1, 1.0f / (specExp + 1.0f));
+        float const sinTheta = sqrt(1.0f - cos_a * cos_a);
+        float const phi = M_2PI_F * r2;
 
-        /*
-         * Generate another random value, uniform between 0 and 2pi, which is the angle around the mirror reflection
-         * vector
-         */
-        float const phi = 2.0f * M_PI_F * r2;
-        float const sinTheta = sqrt(1.0f - cosA * cosA);
-        float const xb = cos(phi) * sinTheta;
-        float const yb = sin(phi) * sinTheta;
-        /*
-         * Construct an ortho-normal basis using the reflection vector as one axis, and arbitrary (perpendicular)
-         * vectors for the other two axes. The orientation of the coordinate system about the reflection vector is
-         * irrelevant since xb and yb are generated from a uniform random variable.
-         */
-        float4 u = (float4) (0.0f, 1.0f, 0.0f, 0.0f);
-        float const cosAng = dot(sampleDirection, u);
-        if (cosAng > 0.9f || cosAng < -0.9f) {
-            // Small angle, pick a better vector...
-            u.x = -1.0f;
-            u.y = 0.0f;
-        }
-        u = normalize(cross(u, sampleDirection));
-        float4 const v = cross(u, sampleDirection);
-
-        sampleDirection *= cosA;
-        sampleDirection += u * xb + v * yb;
-
-        if (dot(sampleDirection, surfaceNormal) < 0.0f)
-            sampleDirection += -2.0f * xb * u + -2.0f * yb * v;
+        wi_shading.z = cos_a;
+        wi_shading.x = cos(phi) * sinTheta;
+        wi_shading.y = sin(phi) * sinTheta;
+        //pdf = ((specExp + 1.0f) * pow(cos_a, specExp)) / (M_2PI_F * 4.0f * DOT(
+        //wi_shading, ray->d));
+        pdf = 1.0f;
     } else {
-        sampleDirection += (surfaceNormal) * (-2.0f * dot(sampleDirection,
-                surfaceNormal));
+        pdf = 1.0f;
     }
-    ray->d.x = sampleDirection.x;
-    ray->d.y = sampleDirection.y;
-    ray->d.z = sampleDirection.z;
+    ray->d = shading_to_world(hit->surface_normal, wi_shading.x, wi_shading.y,
+            wi_shading.z);
 
-    ray->o.x = hit->hit_pt.x;
-    ray->o.y = hit->hit_pt.y;
-    ray->o.z = hit->hit_pt.z;
-
-    ray->tmin = SMALL_F;
-    ray->tmax = INFINITY;
-
-    return 1.0f;
+    init_bounce_ray(ray, hit);
+    return pdf;
 }
 
 /*!
@@ -148,16 +140,12 @@ float sampleLambert(ray_t *ray, const hit_info_t *hit, float const r1,
     /*
      * Cosine-weighted sampling about the z axis.
      */
-    const float4 hemisphereSample = cosSampleHemisphere(r1, r2);
+    const float4 hemisphereSample = cos_sample_hemisphere(r1, r2);
 
-    ray->d = shading_to_world(hit->surface_normal, hemisphereSample.x, hemisphereSample.y, hemisphereSample.z);
+    ray->d = shading_to_world(hit->surface_normal, hemisphereSample.x,
+            hemisphereSample.y, hemisphereSample.z);
 
-    ray->o.x = hit->hit_pt.x;
-    ray->o.y = hit->hit_pt.y;
-    ray->o.z = hit->hit_pt.z;
-
-    ray->tmin = SMALL_F;
-    ray->tmax = INFINITY;
+    init_bounce_ray(ray, hit);
 
     return hemisphereSample.w;
 }
@@ -169,8 +157,8 @@ float evaluateLambert() {
 /*!
  * \brief Samples irradiance direction for a refractive BRDF model.
  *
- * \param sampleDirection Contains the normalized direction vector of the sample on input, and the normalized irradiance sample direction on output.
- * \param surfaceNormal Contains the surface normal at the sample point.
+ * \param ray contains the incident ray on input, and the exitant ray on output.
+ * \param hit The hit information at the incident ray's intersection point.
  * \param ior The index of refraction, assumed to be embedded in air with IOR approximately == 1.0.
  * \param blurExp An exponent term similar to the specular exponent in the Phong model, here it controls the refraction direction.
  * \param r1 A uniform random number
@@ -178,80 +166,75 @@ float evaluateLambert() {
  *
  * \return false if the generated sample direction crosses out of the refractive volume, true if it is inside.
  */
-//bool sampleRefraction(ray_t *sampleDirection, const hit_info_t *hit,
-//        float const ior, float const blurExp, float const r1, float const r2) {
-//    float4 sNormal = *surfaceNormal;
-//    float cosSampleAndNormal = dot(*sampleDirection, sNormal);
-//    float rIdxRatio;
-//    bool exiting;
-//    if (cosSampleAndNormal <= 0.0f) {
-//        rIdxRatio = 1.0f / ior;
-//        cosSampleAndNormal = -cosSampleAndNormal;
-//        exiting = false;
-//    } else {
-//        rIdxRatio = ior;
-//        sNormal *= -1.0f;
-//        exiting = true;
-//    }
-//
-//    float snellRoot = 1.0f - (rIdxRatio * rIdxRatio * (1.0f
-//            - cosSampleAndNormal * cosSampleAndNormal));
-//    if (snellRoot < 0.0f) {
-//        /*
-//         * Total internal reflection
-//         */
-//        *sampleDirection = normalize(*sampleDirection + (sNormal) * (-2.0f
-//                * dot(*sampleDirection, sNormal)));
-//        return exiting;
-//    } else {
-//        /*
-//         * Refraction
-//         */
-//        *sampleDirection *= rIdxRatio;
-//        *sampleDirection += sNormal * (rIdxRatio * cosSampleAndNormal - sqrt(
-//                snellRoot));
-//        if (blurExp < 100000.0f) {
-//            /*
-//             * Idential to phong, except we substitude the refraction direction
-//             * for the mirror reflection vector.
-//             */
-//            float cosA = pow(r1, 1.0f / (blurExp + 1.0f));
-//
-//            /*
-//             * Generate another random value, uniform between 0 and 2pi, which
-//             * is the angle around the mirror reflection vector
-//             */
-//            float phi = 2.0f * M_PI_F * r2;
-//            float sinTheta = sqrt(1.0f - cosA * cosA);
-//            float xb = cos(phi) * sinTheta;
-//            float yb = sin(phi) * sinTheta;
-//
-//            /*
-//             * Construct an ortho-normal basis using the reflection vector as
-//             * one axis, and arbitrary (perpendicular) vectors for the other two
-//             * axes. The orientation of the coordinate system about the
-//             * reflection vector is irrelevant since xb and yb are generated
-//             * from a uniform random variable.
-//             */
-//            float4 u = (float4) (0.0f, 1.0f, 0.0f, 0.0f);
-//            float const cosAng = dot(*sampleDirection, u);
-//            if (cosAng > 0.9f || cosAng < -0.9f) {
-//                // Small angle, pick a better vector...
-//                u.x = -1.0f;
-//                u.y = 0.0f;
-//            }
-//            u = normalize(cross(u, *sampleDirection));
-//            float4 const v = cross(u, *sampleDirection);
-//            ;
-//
-//            *sampleDirection *= cosA;
-//            *sampleDirection += u * xb + v * yb;
-//            if (dot(*sampleDirection, *surfaceNormal) < 0.0f)
-//                *sampleDirection -= 2.0f * (u * xb + v * yb);
-//        }
-//    }
-//    return !exiting;
-//}
+bool sampleRefraction(ray_t *ray, const hit_info_t *hit, float const ior,
+        float const blurExp, float const r1, float const r2) {
+
+    /* convert wi to a vector pointing away from the hit point */
+    ray->d.x *= -1.0;
+    ray->d.y *= -1.0;
+    ray->d.z *= -1.0;
+    /* And into shading coords */
+    ray->d = world_to_shading(ray->d, hit->surface_normal);
+
+    float ref_idx_ratio;
+    bool entering = ray->d.z > 0; /* wo in same hemisphere as surface normal? */
+    if (entering) {
+        ref_idx_ratio = 1.0f / ior;
+    } else {
+        ref_idx_ratio = ior;
+    }
+    float cos_theta_sq = 1.0f - (ref_idx_ratio * ref_idx_ratio * (1.0f
+            - ray->d.z * ray->d.z));
+
+    if (cos_theta_sq < 0.0f) {
+        /*
+         * Internal reflection
+         */
+        ray->d = shading_to_world(hit->surface_normal, -ray->d.x, -ray->d.y,
+                ray->d.z);
+    } else {
+        /*
+         * Refraction
+         */
+        float cos_theta = sqrt(cos_theta_sq);
+        if (entering)
+            cos_theta = -cos_theta; /* exitant ray should point away from surface normal */
+
+        //
+        //        if (blurExp < 100000.0f) {
+        //            /*
+        //             * Idential to phong, except we substitude the refraction direction
+        //             * for the mirror reflection vector.
+        //             */
+        //            float cos_a = pow(r1, 1.0f / (blurExp + 1.0f));
+        //
+        //            /*
+        //             * Generate another random value, uniform between 0 and 2pi, which
+        //             * is the angle around the mirror reflection vector
+        //             */
+        //            float phi = 2.0f * M_PI_F * r2;
+        //            float sin_theta = sqrt(1.0f - cos_a * cos_a);
+        //            float xb = cos(phi) * sin_theta;
+        //            float yb = sin(phi) * sin_theta;
+        //
+        //            /*
+        //             * Construct an ortho-normal basis using the refraction vector as
+        //             * one axis, and arbitrary (perpendicular) vectors for the other two
+        //             * axes. The orientation of the coordinate system about the
+        //             * reflection vector is irrelevant since xb and yb are generated
+        //             * from a uniform random variable.
+        //             */
+        //            ray->d = shading_to_world(ray->d, xb, yb, cos_a);
+        //            //FIXME: need to reflect the vector if sample is not in same hemisphere
+        //            //            if (DOT(ray->d, s_normal) < 0.0f)
+        //            //                *sampleDirection -= 2.0f * (u * xb + v * yb);
+        //        }
+        ray->d = shading_to_world(hit->surface_normal, -ray->d.x
+                * ref_idx_ratio, -ray->d.y * ref_idx_ratio, cos_theta);
+    }
+    init_bounce_ray(ray, hit);
+    return entering;
+}
 
 /*!
  * \brief Given a spherical emissive light source, a sample point (to sample illumination for), computes a ray direction from 

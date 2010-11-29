@@ -125,7 +125,7 @@ __kernel void raytrace(__global float *out, __constant Camera *camera,
                      * Update origin to new intersect point
                      */
                     hit_info_t hit;
-                    hit.hit_pt = (vec3){ray.o.x + ray.d.x * ray.tmax, ray.o.y + ray.d.y * ray.tmax, ray.o.z + ray.d.z * ray.tmax};
+                    hit.hit_pt = (vec3) {ray.o.x + ray.d.x * ray.tmax, ray.o.y + ray.d.y * ray.tmax, ray.o.z + ray.d.z * ray.tmax};
                     hit.surface_normal.x = (hit.hit_pt.x - hitSphere->center.x) / hitSphere->radius;
                     hit.surface_normal.y = (hit.hit_pt.y - hitSphere->center.y) / hitSphere->radius;
                     hit.surface_normal.z = (hit.hit_pt.z - hitSphere->center.z) / hitSphere->radius;
@@ -152,23 +152,27 @@ __kernel void raytrace(__global float *out, __constant Camera *camera,
                         const float pdf = samplePhong(&ray, &hit, hitSphere->specExp,r1, r2);
                         emissiveContributes = true;
                         /* cos (Wi) term */
-                        transmissionColor *= fabs(ray.d.x * hit.surface_normal.x + ray.d.y * hit.surface_normal.y + ray.d.z * hit.surface_normal.z);// / pdf;
+                        transmissionColor *= DOT(ray.d, hit.surface_normal) / pdf;
                     }
                     else if (p < (hitSphere->ks + hitSphere->diffuse.w))
                     {
-                        const float pdf = sampleLambert(&ray, &hit, r1, r2);
+                        //const float pdf =
+                        sampleLambert(&ray, &hit, r1, r2);
                         emissiveContributes = false;
-                        /* cos (Wi) * diffuse / PDF */
-                        transmissionColor *= hitSphere->diffuse * (ray.d.x * hit.surface_normal.x + ray.d.y * hit.surface_normal.y + ray.d.z * hit.surface_normal.z);// pdf;
+                        /*
+                         * cos (Wi) * diffuse / PDF
+                         *
+                         * Assumes that sampleLambert has a cosine distribution, so that everything cancels except the diffuse color.
+                         */
+                        transmissionColor *= hitSphere->diffuse; //* evaluateLambert() * DOT(ray.d, hit.surface_normal)/ pdf;
                     }
                     else if (p < (hitSphere->ks + hitSphere->diffuse.w + hitSphere->extinction.w))
                     {
-                        //TODO: fix refraction
-                        //if (sampleRefraction(&direction, &hitNormal, hitSphere->ior, 1000000.0f, r1, r2)) {
-                        //	extinction = hitSphere->extinction;
-                        //} else {
-                        //	emissiveContributes = true;
-                        //}
+                        if (sampleRefraction(&ray, &hit, hitSphere->ior, 1000000.0f, r1, r2)) {
+                            extinction = hitSphere->extinction;
+                        } else {
+                            emissiveContributes = true;
+                        }
                     }
                     else
                     {
@@ -182,7 +186,7 @@ __kernel void raytrace(__global float *out, __constant Camera *camera,
                     {
                         ray.tmax = hitDistance;
                         hit_info_t hit;
-                        hit.hit_pt = (vec3){ray.o.x + ray.d.x * ray.tmax, ray.o.y + ray.d.y * ray.tmax, ray.o.z + ray.d.z * ray.tmax};
+                        hit.hit_pt = (vec3) {ray.o.x + ray.d.x * ray.tmax, ray.o.y + ray.d.y * ray.tmax, ray.o.z + ray.d.z * ray.tmax};
                         boxNormal(&ray, &hit, BOX_SIZE, BOX_SIZE, BOX_SIZE); /* populate surface_normal */
 
                         float4 direct = directIllumination(&hit, spheres, sphereCount, &seed);
