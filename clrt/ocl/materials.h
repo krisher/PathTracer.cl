@@ -53,7 +53,7 @@ void init_bounce_ray(ray_t *ray, const hit_info_t *hit) {
 vec3 shading_to_world(const vec3 shading_normal, float s_x, float s_y,
         float s_z) {
     const vec3 tangentX = perpendicular_vector(shading_normal);
-    const vec3 tangentY = cross(shading_normal, tangentX);
+    const vec3 tangentY = cross_vec(shading_normal, tangentX);
     return (vec3) {tangentX.x * s_x + tangentY.x * s_y + shading_normal.x * s_z,
         tangentX.y * s_x + tangentY.y * s_y + shading_normal.y * s_z,
         tangentX.z * s_x + tangentY.z * s_y + shading_normal.z * s_z};
@@ -68,7 +68,7 @@ vec3 shading_to_world(const vec3 shading_normal, float s_x, float s_y,
  */
 vec3 world_to_shading(const vec3 world_vec, const vec3 shading_normal) {
     const vec3 tangentX = perpendicular_vector(shading_normal);
-    const vec3 tangentY = cross(shading_normal, tangentX);
+    const vec3 tangentY = cross_vec(shading_normal, tangentX);
     return (vec3) {DOT(world_vec, tangentX),
         DOT(world_vec, tangentY),
         DOT(world_vec, shading_normal)};
@@ -166,23 +166,28 @@ float evaluateLambert() {
  *
  * \return false if the generated sample direction crosses out of the refractive volume, true if it is inside.
  */
-bool sampleRefraction(ray_t *ray, const hit_info_t *hit, float const ior,
-        float const blurExp, float const r1, float const r2) {
+bool sampleRefraction(float4 *transmission, ray_t *ray, const hit_info_t *hit,
+        float const ior, float const blurExp, float const r1, float const r2) {
 
     /* convert wi to a vector pointing away from the hit point */
-    ray->d.x *= -1.0;
-    ray->d.y *= -1.0;
-    ray->d.z *= -1.0;
+    ray->d.x *= -1.0f;
+    ray->d.y *= -1.0f;
+    ray->d.z *= -1.0f;
     /* And into shading coords */
     ray->d = world_to_shading(ray->d, hit->surface_normal);
+    float cos_wo = fabs(ray->d.z);
 
-    float ref_idx_ratio;
     bool entering = ray->d.z > 0; /* wo in same hemisphere as surface normal? */
+    float ei;
+    float eo;
     if (entering) {
-        ref_idx_ratio = 1.0f / ior;
+        ei = 1.0f;
+        eo = ior;
     } else {
-        ref_idx_ratio = ior;
+        ei = ior;
+        eo = 1.0f;
     }
+    float ref_idx_ratio = ei / eo;
     float cos_theta_sq = 1.0f - (ref_idx_ratio * ref_idx_ratio * (1.0f
             - ray->d.z * ray->d.z));
 
@@ -192,6 +197,7 @@ bool sampleRefraction(ray_t *ray, const hit_info_t *hit, float const ior,
          */
         ray->d = shading_to_world(hit->surface_normal, -ray->d.x, -ray->d.y,
                 ray->d.z);
+        //        (*pixel).x = 100.0f;
     } else {
         /*
          * Refraction
@@ -231,8 +237,19 @@ bool sampleRefraction(ray_t *ray, const hit_info_t *hit, float const ior,
         //        }
         ray->d = shading_to_world(hit->surface_normal, -ray->d.x
                 * ref_idx_ratio, -ray->d.y * ref_idx_ratio, cos_theta);
+
+        /* Fresnel Dielectric transmission based on PBRT */
+        cos_theta = fabs(cos_theta);
+        float parl = (eo * cos_wo - ei * cos_theta)
+                / (eo * cos_wo + ei * cos_theta);
+        float perp = (ei * cos_wo - eo * cos_theta)
+                / (ei * cos_wo + eo * cos_theta);
+        float fresnel = (parl * parl + perp * perp) * 0.5f;
+        fresnel = (1.0f - fresnel) / cos_theta;
+        (*transmission) *= fresnel;
     }
     init_bounce_ray(ray, hit);
+
     return entering;
 }
 

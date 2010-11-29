@@ -1,4 +1,4 @@
-//#pragma OPENCL EXTENSION cl_amd_printf : enable
+#pragma OPENCL EXTENSION cl_amd_printf : enable
 /*!
  * \file raytracer.cl
  * \brief OpenCL based Path-Tracer kernel.
@@ -68,7 +68,7 @@ __kernel void raytrace(__global float *out, __constant Camera *camera,
         uint const maxDepth, uint const progressive, __global seed_value_t *seeds)
 {
     /*
-     * The pixel we are rendering is identified to the global ids for the first two dimensions.
+     * The pixel x,y is identified by the global ids for the first two dimensions.
      */
     const uint x = get_global_id(0);
     const uint y = get_global_id(1);
@@ -126,9 +126,7 @@ __kernel void raytrace(__global float *out, __constant Camera *camera,
                      */
                     hit_info_t hit;
                     hit.hit_pt = (vec3) {ray.o.x + ray.d.x * ray.tmax, ray.o.y + ray.d.y * ray.tmax, ray.o.z + ray.d.z * ray.tmax};
-                    hit.surface_normal.x = (hit.hit_pt.x - hitSphere->center.x) / hitSphere->radius;
-                    hit.surface_normal.y = (hit.hit_pt.y - hitSphere->center.y) / hitSphere->radius;
-                    hit.surface_normal.z = (hit.hit_pt.z - hitSphere->center.z) / hitSphere->radius;
+                    sphereNormal(&hit, hitSphere->center, hitSphere->radius);
 
                     /*
                      * Sample direct illumination
@@ -136,7 +134,7 @@ __kernel void raytrace(__global float *out, __constant Camera *camera,
                     if (hitSphere->diffuse.w > 0.0f)
                     {
                         float4 direct = directIllumination(&hit, spheres, sphereCount, &seed);
-                        pixelColor += transmissionColor * direct * hitSphere->diffuse * evaluateLambert(); /* Diffuse BRDF */
+                        pixelColor += transmissionColor * direct * hitSphere->diffuse * hitSphere->diffuse.w * evaluateLambert(); /* Diffuse BRDF */
                     }
 
                     /*
@@ -168,11 +166,12 @@ __kernel void raytrace(__global float *out, __constant Camera *camera,
                     }
                     else if (p < (hitSphere->ks + hitSphere->diffuse.w + hitSphere->extinction.w))
                     {
-                        if (sampleRefraction(&ray, &hit, hitSphere->ior, 1000000.0f, r1, r2)) {
-                            extinction = hitSphere->extinction;
+                        if (sampleRefraction(&transmissionColor, &ray, &hit, hitSphere->ior, 1000000.0f, r1, r2)) {
+//                            extinction = hitSphere->extinction;
                         } else {
                             emissiveContributes = true;
                         }
+                        transmissionColor *= fabs(DOT(ray.d, hit.surface_normal));
                     }
                     else
                     {
@@ -191,8 +190,9 @@ __kernel void raytrace(__global float *out, __constant Camera *camera,
 
                         float4 direct = directIllumination(&hit, spheres, sphereCount, &seed);
                         pixelColor += 0.7f * direct * transmissionColor * evaluateLambert(); /* Diffuse BRDF */
-                        const float pdf = sampleLambert(&ray, &hit, frand(&seed), frand(&seed));
-                        transmissionColor *= 0.7f * fabs(ray.d.x * hit.surface_normal.x + ray.d.y * hit.surface_normal.y + ray.d.z * hit.surface_normal.z); // /pdf;
+                        //const float pdf =
+                        sampleLambert(&ray, &hit, frand(&seed), frand(&seed));
+                        transmissionColor *= 0.7f;// * fabs(ray.d.x * hit.surface_normal.x + ray.d.y * hit.surface_normal.y + ray.d.z * hit.surface_normal.z) * evaluateLambert() / pdf;
                         emissiveContributes = false;
                     }
                     else

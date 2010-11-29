@@ -46,9 +46,9 @@ int main(void)
   sphere.center.z = 2.0f;
   sphere.ks = 0.0f;
   sphere.ior = 1.4f;
-//  sphere.extinction.x = 0.95f;
-//  sphere.extinction.y = 0.65f;
-//  sphere.extinction.z = 0.65f;
+  sphere.extinction.x = 0.95f;
+  sphere.extinction.y = 0.65f;
+  sphere.extinction.z = 0.65f;
   sphere.extinction.w = 1.0f;
   sphere.specExp = 100.0f;
   sphere.radius = 1.0f;

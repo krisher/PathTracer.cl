@@ -5,6 +5,7 @@
 
 #define DOT(a,b) (a.x * b.x + a.y * b.y + a.z * b.z)
 
+
 /*!
  * \brief Ray-Sphere intersection test
  * \param ray The ray to test intersection with.
@@ -26,6 +27,17 @@ float intersectSphere(const ray_t *ray, float4 const center, float const radius)
     return 0.0f;
 }
 
+void sphereNormal(hit_info_t *hit, float4 const center,
+        float const radius) {
+    const float inv_radius = 1.0f / radius;
+    hit->surface_normal.x = (hit->hit_pt.x - center.x)
+            * inv_radius;
+    hit->surface_normal.y = (hit->hit_pt.y - center.y)
+            * inv_radius;
+    hit->surface_normal.z = (hit->hit_pt.z - center.z)
+            * inv_radius;
+}
+
 void boxNormal(const ray_t *ray, hit_info_t *hit, float const xSize,
         float const ySize, float const zSize) {
     const vec3 hitPt = hit->hit_pt;
@@ -34,14 +46,11 @@ void boxNormal(const ray_t *ray, hit_info_t *hit, float const xSize,
     const float y_side_dist = fabs(fabs(hitPt.y) - ySize);
     const float z_side_dist = fabs(fabs(hitPt.z) - zSize);
     if (x_side_dist < y_side_dist && x_side_dist < z_side_dist)
-        hit->surface_normal
-                = (vec3) {-hitPt.x / fabs(hitPt.x), 0.0f, 0.0f};
+        hit->surface_normal = (vec3) {-hitPt.x / fabs(hitPt.x), 0.0f, 0.0f};
     else if (y_side_dist < z_side_dist)
-        hit->surface_normal
-                = (vec3) {0.0f, -hitPt.y / fabs(hitPt.y), 0.0f};
+        hit->surface_normal = (vec3) {0.0f, -hitPt.y / fabs(hitPt.y), 0.0f};
     else
-        hit->surface_normal
-                = (vec3) {0.0f, 0.0f, -hitPt.z / fabs(hitPt.z)};
+        hit->surface_normal = (vec3) {0.0f, 0.0f, -hitPt.z / fabs(hitPt.z)};
 }
 
 float intersectsBox(const ray_t *ray, const float4 center, const float xSize,
@@ -164,13 +173,10 @@ vec3 perpendicular_vector(const vec3 vec) {
     return tangentX;
 }
 
-vec3 __OVERLOADABLE__ cross(const vec3 v1, const vec3 v2) {
+vec3 cross_vec(const vec3 v1, const vec3 v2) {
     return (vec3) {v1.y * v2.z - v1.z * v2.y, v1.z * v2.x - v1.x * v2.z, v1.x
-            * v2.y - v1.y * v2.x};
+        * v2.y - v1.y * v2.x};
 }
 
-float4 __OVERLOADABLE__ as_float4(vec3 vec) {
-    return (float4)(vec.x, vec.y, vec.z, 0.0f);
-}
 
 #endif /* GEOMETRY_FUNCS_H */
