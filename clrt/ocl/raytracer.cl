@@ -167,7 +167,7 @@ __kernel void raytrace(__global float *out, __constant Camera *camera,
                     else if (p < (hitSphere->ks + hitSphere->diffuse.w + hitSphere->extinction.w))
                     {
                         if (sampleRefraction(&transmissionColor, &ray, &hit, hitSphere->ior, 1000000.0f, r1, r2)) {
-//                            extinction = hitSphere->extinction;
+                            extinction = hitSphere->extinction;
                         } else {
                             emissiveContributes = true;
                         }

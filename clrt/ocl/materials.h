@@ -109,15 +109,20 @@ float samplePhong(ray_t *ray, const hit_info_t *hit, float const specExp,
         float const sinTheta = sqrt(1.0f - cos_a * cos_a);
         float const phi = M_2PI_F * r2;
 
-        wi_shading.z = cos_a;
         wi_shading.x = cos(phi) * sinTheta;
         wi_shading.y = sin(phi) * sinTheta;
-        //pdf = ((specExp + 1.0f) * pow(cos_a, specExp)) / (M_2PI_F * 4.0f * DOT(
-        //wi_shading, ray->d));
+        wi_shading.z = cos_a;
+
+        float wo_dot_wh = DOT(ray->d, wi_shading);
+        wi_shading.x = -ray->d.x + 2.0f * wo_dot_wh * wi_shading.x;
+        wi_shading.y = -ray->d.y + 2.0f * wo_dot_wh * wi_shading.y;
+        wi_shading.z = -ray->d.z + 2.0f * wo_dot_wh * wi_shading.z;
+
         pdf = 1.0f;
     } else {
         pdf = 1.0f;
     }
+
     ray->d = shading_to_world(hit->surface_normal, wi_shading.x, wi_shading.y,
             wi_shading.z);
 
@@ -206,44 +211,36 @@ bool sampleRefraction(float4 *transmission, ray_t *ray, const hit_info_t *hit,
         if (entering)
             cos_theta = -cos_theta; /* exitant ray should point away from surface normal */
 
-        //
-        //        if (blurExp < 100000.0f) {
-        //            /*
-        //             * Idential to phong, except we substitude the refraction direction
-        //             * for the mirror reflection vector.
-        //             */
-        //            float cos_a = pow(r1, 1.0f / (blurExp + 1.0f));
-        //
-        //            /*
-        //             * Generate another random value, uniform between 0 and 2pi, which
-        //             * is the angle around the mirror reflection vector
-        //             */
-        //            float phi = 2.0f * M_PI_F * r2;
-        //            float sin_theta = sqrt(1.0f - cos_a * cos_a);
-        //            float xb = cos(phi) * sin_theta;
-        //            float yb = sin(phi) * sin_theta;
-        //
-        //            /*
-        //             * Construct an ortho-normal basis using the refraction vector as
-        //             * one axis, and arbitrary (perpendicular) vectors for the other two
-        //             * axes. The orientation of the coordinate system about the
-        //             * reflection vector is irrelevant since xb and yb are generated
-        //             * from a uniform random variable.
-        //             */
-        //            ray->d = shading_to_world(ray->d, xb, yb, cos_a);
-        //            //FIXME: need to reflect the vector if sample is not in same hemisphere
-        //            //            if (DOT(ray->d, s_normal) < 0.0f)
-        //            //                *sampleDirection -= 2.0f * (u * xb + v * yb);
-        //        }
-        ray->d = shading_to_world(hit->surface_normal, -ray->d.x
-                * ref_idx_ratio, -ray->d.y * ref_idx_ratio, cos_theta);
+        vec3
+                wi_shading =
+                        (vec3) {-ray->d.x * ref_idx_ratio, -ray->d.y * ref_idx_ratio, cos_theta};
+        if (blurExp < 100000.0f) {
+            /*
+             * Idential to phong, except we substitude the refraction direction
+             * for the mirror reflection vector.
+             */
+            float cos_a = pow(r1, 1.0f / (blurExp + 1.0f));
+            float const sinTheta = sqrt(1.0f - cos_a * cos_a);
+            float const phi = M_2PI_F * r2;
+
+            wi_shading.x = cos(phi) * sinTheta;
+            wi_shading.y = sin(phi) * sinTheta;
+            wi_shading.z = cos_a;
+
+            float wo_dot_wh = DOT(ray->d, wi_shading);
+            wi_shading.x = -ray->d.x + 2.0f * wo_dot_wh * wi_shading.x;
+            wi_shading.y = -ray->d.y + 2.0f * wo_dot_wh * wi_shading.y;
+            wi_shading.z = -ray->d.z + 2.0f * wo_dot_wh * wi_shading.z;
+        }
+        ray->d = shading_to_world(hit->surface_normal, wi_shading.x,
+                wi_shading.y, wi_shading.z);
 
         /* Fresnel Dielectric transmission based on PBRT */
         cos_theta = fabs(cos_theta);
-        float parl = (eo * cos_wo - ei * cos_theta)
-                / (eo * cos_wo + ei * cos_theta);
-        float perp = (ei * cos_wo - eo * cos_theta)
-                / (ei * cos_wo + eo * cos_theta);
+        float parl = (eo * cos_wo - ei * cos_theta) / (eo * cos_wo + ei
+                * cos_theta);
+        float perp = (ei * cos_wo - eo * cos_theta) / (ei * cos_wo + eo
+                * cos_theta);
         float fresnel = (parl * parl + perp * perp) * 0.5f;
         fresnel = (1.0f - fresnel) / cos_theta;
         (*transmission) *= fresnel;
