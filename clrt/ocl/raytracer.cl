@@ -12,7 +12,7 @@
 /*
  * Half-width of the cube that encloses the scene.
  */
-#define BOX_SIZE 6.0f
+#define BOX_SIZE 5.0f
 
 /*!
  * Computes the direct illumination incident on a specified point.
