@@ -41,11 +41,11 @@ int main(void)
   sphere.diffuse.y = 0.0f;
   sphere.diffuse.z = 0.0f;
   sphere.diffuse.w = 0.0f;
-  sphere.center.y = -4.0f;
+  sphere.center.y = -3.0f;
   sphere.center.x = 2.0f;
   sphere.center.z = 2.0f;
   sphere.ks = 0.0f;
-  sphere.ior = 1.0f;
+  sphere.ior = 1.4f;
   sphere.extinction.x = 0.95f;
   sphere.extinction.y = 0.65f;
   sphere.extinction.z = 0.65f;
