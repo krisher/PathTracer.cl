@@ -45,7 +45,7 @@ int main(void)
   sphere.center.x = 2.0f;
   sphere.center.z = 2.0f;
   sphere.ks = 0.0f;
-  sphere.ior = 1.4f;
+  sphere.ior = 1.0f;
   sphere.extinction.x = 0.95f;
   sphere.extinction.y = 0.65f;
   sphere.extinction.z = 0.65f;
@@ -55,7 +55,7 @@ int main(void)
   window.rayTracer.addSphere(sphere);
 
 
-
+  initSphere(sphere);
   sphere.diffuse.x = 0.8f;
   sphere.diffuse.y = 0.8f;
   sphere.diffuse.z = 0.8f;
@@ -68,9 +68,9 @@ int main(void)
   sphere.radius = 1.0f;
   window.rayTracer.addSphere(sphere);
 
-  sphere.diffuse.x = 0.8f;
-  sphere.diffuse.y = 0.8f;
-  sphere.diffuse.z = 0.9f;
+  sphere.diffuse.x = 0.7f;
+  sphere.diffuse.y = 0.7f;
+  sphere.diffuse.z = 0.0f;
   sphere.diffuse.w = 0.2f;
   sphere.center.y = -4.0f;
   sphere.center.x = 2.0f;
@@ -109,8 +109,8 @@ int main(void)
   window.rayTracer.addSphere(sphere);
 
   window.rayTracer.setSampleRate(2);
-  window.rayTracer.setMaxPathDepth(6);
-  window.rayTracer.setCameraSpherical(gmtl::Point3f(0,-4,-0), 40.0f, 105.0f, 6);
+  window.rayTracer.setMaxPathDepth(8);
+  window.rayTracer.setCameraSpherical(gmtl::Point3f(0,-4,-0), 40.0f, 105.0f, 5);
   window.setProgressive(10000);
 
   glutMainLoop();

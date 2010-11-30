@@ -35,6 +35,7 @@ class GlutCLWindow : public GlutWindow
   //TODO: These should be accessible from the camera.
   float azimuth;
   float elevation;
+  float distance;
 
   void allocatePBO();
   void rayTrace();

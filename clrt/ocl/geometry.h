@@ -70,13 +70,25 @@ typedef struct {
     vec3 d;
     float tmin;
     float tmax;
+
+    vec3 propagation;
+    vec3 extinction;
+
+    uint diffuse_bounce;
+
 } ray_t;
 
 /*!
  * \brief Struct to store ray/surface intersection information.
  */
 typedef struct {
+    /*!
+     * \brief The location where an intersection occurred.
+     */
     vec3 hit_pt;
+    /*!
+     * \brief The surface normal at the intersection point.
+     */
     vec3 surface_normal;
 } hit_info_t;
 
@@ -109,6 +121,7 @@ typedef struct
    * \brief Stores extinction color for transparency in x=>r, y=>g, z=>b and w->kt (proability of transmission)
    */
   float4 extinction;
+
   /*!
    * The emissive color of the sphere.  emission.w must be non-zero for emissive term to be
    * taken into account.

@@ -20,6 +20,7 @@ GlutCLWindow::GlutCLWindow(int width, int height) :
 	//  rayTracer = RayTracerCL();
 	azimuth = 105.0f;
 	elevation = 40.0f;
+	distance = 5.0f;
 	rayTracer.setCameraSpherical(gmtl::Point3f(0, -4, -1), elevation, azimuth,
 			5);
 	maxProgression = 10000;
@@ -204,28 +205,28 @@ void GlutCLWindow::glutSpecialKeypressCallback(int key, int x, int y) {
 	case GLUT_KEY_LEFT: {
 		azimuth = fmod((azimuth + 3.0f), 360.0f);
 		rayTracer.setCameraSpherical(gmtl::Point3f(0, -4, 0), elevation,
-				azimuth, 6);
+				azimuth, distance);
 		progression = 0;
 		break;
 	}
 	case GLUT_KEY_RIGHT: {
 		azimuth = fmod((azimuth - 3.0f), 360.0f);
 		rayTracer.setCameraSpherical(gmtl::Point3f(0, -4, 0), elevation,
-				azimuth, 6);
+				azimuth, distance);
 		progression = 0;
 		break;
 	}
 	case GLUT_KEY_UP: {
 		elevation = fmin(elevation + 3.0f, 90.0f);
 		rayTracer.setCameraSpherical(gmtl::Point3f(0, -4, 0), elevation,
-				azimuth, 6);
+				azimuth, distance);
 		progression = 0;
 		break;
 	}
 	case GLUT_KEY_DOWN: {
 		elevation = fmax(elevation - 3.0f, 10.0f);
 		rayTracer.setCameraSpherical(gmtl::Point3f(0, -4, 0), elevation,
-				azimuth, 6);
+				azimuth, distance);
 		progression = 0;
 		break;
 	}

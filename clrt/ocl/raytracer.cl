@@ -12,7 +12,8 @@
 /*
  * Half-width of the cube that encloses the scene.
  */
-#define BOX_SIZE 5.0f
+#define BOX_WIDTH 6.0f
+#define BOX_HEIGHT 5.0f
 
 /*!
  * Computes the direct illumination incident on a specified point.
@@ -45,6 +46,85 @@ float4 directIllumination(const hit_info_t *hit, __constant Sphere *geometry, co
         }
     }
     return irradiance;
+}
+
+void init_bounce_ray(ray_t *ray, const hit_info_t *hit) {
+    ray->o.x = hit->hit_pt.x;
+    ray->o.y = hit->hit_pt.y;
+    ray->o.z = hit->hit_pt.z;
+
+    ray->tmin = SMALL_F;
+    ray->tmax = INFINITY;
+}
+
+bool sample_material(ray_t *ray, const hit_info_t *hit,
+        constant Sphere *hitSphere, seed_value_t *seed) {
+    /*
+     * Generate random number to determine whether to sample specular, diffuse, or transmissive directions,
+     * and two more to pass to the sampling functions.  This is done outside of the conditional to avoid
+     * excessive serialization of work-item threads.
+     */
+    float p = frand(seed);
+    float r1 = frand(seed);
+    float r2 = frand(seed);
+
+    ray->o.x = hit->hit_pt.x;
+    ray->o.y = hit->hit_pt.y;
+    ray->o.z = hit->hit_pt.z;
+    /* convert wi to a vector pointing away from the hit point */
+    ray->d.x *= -1.0f;
+    ray->d.y *= -1.0f;
+    ray->d.z *= -1.0f;
+    /* And into shading coords */
+    ray->d = world_to_shading(ray->d, hit->surface_normal);
+
+    ray->tmin = SMALL_F;
+    ray->tmax = INFINITY;
+
+    if (p < hitSphere->ks) {
+        const float inv_pdf = 1.0 / samplePhong(&(ray->d), hitSphere->specExp,
+                r1, r2);
+        ray->diffuse_bounce = false;
+        /* cos (Wi) term */
+        ray->propagation.x *= ray->d.z * inv_pdf;
+        ray->propagation.y *= ray->d.z * inv_pdf;
+        ray->propagation.z *= ray->d.z * inv_pdf;
+    } else if (p < (hitSphere->ks + hitSphere->diffuse.w)) {
+        //const float pdf =
+        sampleLambert(&(ray->d), r1, r2);
+        ray->diffuse_bounce = true;
+        /*
+         * cos (Wi) * diffuse / PDF
+         *
+         * Assumes that sampleLambert has a cosine distribution, so that everything cancels except the diffuse color.
+         */
+        ray->propagation.x *= hitSphere->diffuse.x; //* evaluateLambert() * DOT(ray.d, hit.surface_normal)/ pdf;
+        ray->propagation.y *= hitSphere->diffuse.y;
+        ray->propagation.z *= hitSphere->diffuse.z;
+
+    } else if (p < (hitSphere->ks + hitSphere->diffuse.w
+                    + hitSphere->extinction.w)) {
+        if (sampleRefraction(&(ray->propagation), ray, hit, hitSphere->ior,
+                        1000000.0f, r1, r2)) {
+            ray->extinction.x = hitSphere->extinction.x;
+            ray->extinction.y = hitSphere->extinction.y;
+            ray->extinction.z = hitSphere->extinction.z;
+        } else {
+            ray->extinction.x = 0;
+            ray->extinction.y = 0;
+            ray->extinction.z = 0;
+        }
+        ray->diffuse_bounce = false;
+        /* multiply by cos(theta_wi) */
+        const float cos_theta_wi = fabs(ray->d.z);
+        ray->propagation.x *= cos_theta_wi;
+        ray->propagation.y *= cos_theta_wi;
+        ray->propagation.z *= cos_theta_wi;
+    } else {
+        return false;
+    }
+    ray->d = shading_to_world(ray->d, hit->surface_normal);
+    return true;
 }
 
 /*!
@@ -98,29 +178,14 @@ __kernel void raytrace(__global float *out, __constant Camera *camera,
             float4 rdirection = normalize(camera->view +
                     camera->right * ((float)(x + strat_rand(&seed, sx, sampleRate)) - ((float)imWidth)/2.0f) +
                     camera->up * ((float)(y + strat_rand(&seed, sy, sampleRate)) - ((float)imHeight)/2.0f));
-            ray_t ray = {camera->position.x, camera->position.y, camera->position.z, rdirection.x, rdirection.y, rdirection.z, SMALL_F, INFINITY};
-
-            float4 transmissionColor = {1.0f, 1.0f, 1.0f, 0.0f}; //All light is initially transmitted.
-            float4 extinction = {0.0f, 0.0f, 0.0f, 0.0f};
-            bool emissiveContributes = true;
-
+            ray_t ray = {camera->position.x, camera->position.y, camera->position.z, rdirection.x, rdirection.y, rdirection.z, SMALL_F, INFINITY, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f, false};
             for (int rayDepth = 0; rayDepth <= maxDepth; ++rayDepth)
             {
                 int hitIdx = sceneIntersection( &ray, spheres, sphereCount);
                 if (hitIdx >= 0)
                 {
-                    if (extinction.x > 0.0f) transmissionColor.x *= exp(log(extinction.x) * ray.tmax);
-                    if (extinction.y > 0.0f) transmissionColor.y *= exp(log(extinction.y) * ray.tmax);
-                    if (extinction.z > 0.0f) transmissionColor.z *= exp(log(extinction.z) * ray.tmax);
 
                     constant Sphere *hitSphere = &spheres[hitIdx];
-                    /*
-                     * Emissive contribution
-                     */
-                    if (emissiveContributes)
-                    {
-                        pixelColor += transmissionColor * hitSphere->emission;
-                    }
                     /*
                      * Update origin to new intersect point
                      */
@@ -128,76 +193,80 @@ __kernel void raytrace(__global float *out, __constant Camera *camera,
                     hit.hit_pt = (vec3) {ray.o.x + ray.d.x * ray.tmax, ray.o.y + ray.d.y * ray.tmax, ray.o.z + ray.d.z * ray.tmax};
                     sphereNormal(&hit, hitSphere->center, hitSphere->radius);
 
+                    /* Apply extinction due to simple participating media */
+                    if (ray.extinction.x > 0.0f) ray.propagation.x *= exp(log(ray.extinction.x) * ray.tmax);
+                    if (ray.extinction.y > 0.0f) ray.propagation.y *= exp(log(ray.extinction.y) * ray.tmax);
+                    if (ray.extinction.z > 0.0f) ray.propagation.z *= exp(log(ray.extinction.z) * ray.tmax);
+
+                    /*
+                     * Emissive contribution on surfaces that are not sampled for direct illumination.
+                     */
+                    if (!ray.diffuse_bounce)
+                    {
+                        pixelColor.x += ray.propagation.x * hitSphere->emission.x;
+                        pixelColor.y += ray.propagation.y * hitSphere->emission.y;
+                        pixelColor.z += ray.propagation.z * hitSphere->emission.z;
+                    }
+
                     /*
                      * Sample direct illumination
                      */
                     if (hitSphere->diffuse.w > 0.0f)
                     {
-                        float4 direct = directIllumination(&hit, spheres, sphereCount, &seed);
-                        pixelColor += transmissionColor * direct * hitSphere->diffuse * hitSphere->diffuse.w * evaluateLambert(); /* Diffuse BRDF */
+                        const float4 direct = directIllumination(&hit, spheres, sphereCount, &seed);
+                        const float scale = hitSphere->diffuse.w * evaluateLambert();
+                        pixelColor.x += ray.propagation.x * direct.x * hitSphere->diffuse.x * scale;
+                        pixelColor.y += ray.propagation.y * direct.y * hitSphere->diffuse.y * scale;
+                        pixelColor.z += ray.propagation.z * direct.z * hitSphere->diffuse.z * scale;
                     }
 
-                    /*
-                     * Generate random number to determine whether to sample specular, diffuse, or transmissive directions,
-                     * and two more to pass to the sampling functions.  This is done outside of the conditional to avoid
-                     * excessive serialization of work-item threads.
-                     */
-                    float p = frand(&seed);
-                    float r1 = frand(&seed);
-                    float r2 = frand(&seed);
-                    if (p < hitSphere->ks)
-                    {
-                        const float pdf = samplePhong(&ray, &hit, hitSphere->specExp,r1, r2);
-                        emissiveContributes = true;
-                        /* cos (Wi) term */
-                        transmissionColor *= DOT(ray.d, hit.surface_normal) / pdf;
+                    if (rayDepth == maxDepth) break;
+
+                    if (!sample_material(&ray, &hit, hitSphere, &seed)) {
+                        break;
                     }
-                    else if (p < (hitSphere->ks + hitSphere->diffuse.w))
-                    {
-                        //const float pdf =
-                        sampleLambert(&ray, &hit, r1, r2);
-                        emissiveContributes = false;
-                        /*
-                         * cos (Wi) * diffuse / PDF
-                         *
-                         * Assumes that sampleLambert has a cosine distribution, so that everything cancels except the diffuse color.
-                         */
-                        transmissionColor *= hitSphere->diffuse; //* evaluateLambert() * DOT(ray.d, hit.surface_normal)/ pdf;
-                    }
-                    else if (p < (hitSphere->ks + hitSphere->diffuse.w + hitSphere->extinction.w))
-                    {
-                        if (sampleRefraction(&transmissionColor, &ray, &hit, hitSphere->ior, 1000000.0f, r1, r2)) {
-                            extinction = hitSphere->extinction;
-                        } else {
-                            emissiveContributes = true;
-                        }
-                        transmissionColor *= fabs(DOT(ray.d, hit.surface_normal));
-                    }
-                    else
-                    {
-                        rayDepth = maxDepth + 1; /* Terminate ray. */
-                    }
+
                 } // if hit (sphere) object
                 else // No object hit (process hit for box).
                 {
-                    float hitDistance = intersectsBox(&ray, (float4)0.0f, BOX_SIZE, BOX_SIZE, BOX_SIZE);
+                    float hitDistance = intersectsBox(&ray, (float4)0.0f, BOX_WIDTH, BOX_HEIGHT, BOX_WIDTH);
                     if (hitDistance > ray.tmin && hitDistance < ray.tmax)
                     {
                         ray.tmax = hitDistance;
                         hit_info_t hit;
                         hit.hit_pt = (vec3) {ray.o.x + ray.d.x * ray.tmax, ray.o.y + ray.d.y * ray.tmax, ray.o.z + ray.d.z * ray.tmax};
-                        boxNormal(&ray, &hit, BOX_SIZE, BOX_SIZE, BOX_SIZE); /* populate surface_normal */
+                        boxNormal(&ray, &hit, BOX_WIDTH, BOX_HEIGHT, BOX_WIDTH); /* populate surface_normal */
 
-                        float4 direct = directIllumination(&hit, spheres, sphereCount, &seed);
-                        pixelColor += 0.7f * direct * transmissionColor * evaluateLambert(); /* Diffuse BRDF */
+                        const float4 direct = directIllumination(&hit, spheres, sphereCount, &seed);
+                        const float scale = evaluateLambert();
+                        ray.propagation.x *= 0.7f;
+                        ray.propagation.y *= 0.7f;
+                        ray.propagation.z *= 0.7f;
+                        pixelColor.x += ray.propagation.x * direct.x * scale;
+                        pixelColor.y += ray.propagation.y * direct.y * scale;
+                        pixelColor.z += ray.propagation.z * direct.z * scale;
+
+                        ray.o.x = hit.hit_pt.x;
+                        ray.o.y = hit.hit_pt.y;
+                        ray.o.z = hit.hit_pt.z;
+//                        /* convert wi to a vector pointing away from the hit point */
+//                        ray.d.x *= -1.0f;
+//                        ray.d.y *= -1.0f;
+//                        ray.d.z *= -1.0f;
+//                        /* And into shading coords */
+//                        ray.d = world_to_shading(ray.d, hit.surface_normal);
+
+                        ray.tmin = SMALL_F;
+                        ray.tmax = INFINITY;
+
                         //const float pdf =
-                        sampleLambert(&ray, &hit, frand(&seed), frand(&seed));
-                        transmissionColor *= 0.7f;// * fabs(ray.d.x * hit.surface_normal.x + ray.d.y * hit.surface_normal.y + ray.d.z * hit.surface_normal.z) * evaluateLambert() / pdf;
-                        emissiveContributes = false;
+                        sampleLambert(&(ray.d), frand(&seed), frand(&seed));
+                        ray.d = shading_to_world(ray.d, hit.surface_normal);
+                        ray.diffuse_bounce=true;
                     }
                     else
                     {
-                        rayDepth = maxDepth + 1; // Causes path to terminate.
+                        break; // Causes path to terminate.
                     }
                 }
             } // foreach ray in path
