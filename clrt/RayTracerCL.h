@@ -56,7 +56,7 @@ private:
     /*!
      * \brief A buffer that stores seed values for the rng.
      */
-    cl::Buffer seedBufferCL;
+    cl::Buffer *seedBufferCL;
 
     /*!
      * \brief A flag indicating that the camera has been changed in host code, and must be updated on the OpenCL side.
@@ -77,6 +77,7 @@ private:
 
     void updateCLCamera();
     void init(cl::Platform const &platform);
+    void updateSeedBuffer(uint width, uint height);
 
 protected:
     virtual void cameraChanged();

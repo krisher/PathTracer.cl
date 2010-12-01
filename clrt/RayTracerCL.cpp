@@ -61,10 +61,13 @@ RayTracerCL::RayTracerCL(cl::Platform const &platform) :
 
 RayTracerCL::~RayTracerCL() {
     //TODO: Destroy context
+    if (seedBufferCL)
+        delete seedBufferCL;
 }
 
 void RayTracerCL::init(cl::Platform const &platform) {
 
+    seedBufferCL = NULL;
     /*
      * Acquire a list of all of the devices available in the context.
      */
@@ -86,8 +89,6 @@ void RayTracerCL::init(cl::Platform const &platform) {
      * Compile the program for all devices in the list.
      * This will throw an exception if compilation fails, in which
      * case more specific information is recorded in the build log.
-     *
-     * Note: NVidia beta CUDA/OpenCL driver crashes during build sometimes...
      *
      * TODO: Only compile for our selected target device.
      */
@@ -117,7 +118,7 @@ void RayTracerCL::init(cl::Platform const &platform) {
 #ifdef DEBUG
     std::cout << "Kernel Max WG Size: " << k_wg_size << std::endl;
     std::cout << "Selected ND Range dimensions: [" << ndRangeSizes[0] << ", "
-            << ndRangeSizes[1] << "]." << std::endl;
+    << ndRangeSizes[1] << "]." << std::endl;
 #endif /* DEBUG */
     /*
      * Create an OpenCL command queue
@@ -129,7 +130,7 @@ void RayTracerCL::init(cl::Platform const &platform) {
 
 #ifdef DEBUG
     std::cout << "CL/GL Interoperability: " << (glSharing ? "Yes" : "No")
-            << std::endl;
+    << std::endl;
 #endif
 
     /*
@@ -141,6 +142,32 @@ void RayTracerCL::init(cl::Platform const &platform) {
     geomBufferSize = 0;
     sceneBufferCL = cl::Buffer(context, CL_MEM_READ_ONLY, sizeof(Sphere));
 
+}
+
+void RayTracerCL::updateSeedBuffer(uint width, uint height) {
+    /*
+     * Seed buffer
+     */
+    uint seed_count = width * height * 2;
+    uint seeds[seed_count];
+    for (uint i = 0; i < seed_count; ++i) {
+        seeds[i] = rand();
+        if (seeds[i] < 2) //?
+            seeds[i] = 2;
+    }
+
+    //TODO: is the old buffer getting destroyed?
+    if (seedBufferCL) {
+        delete seedBufferCL;
+    }
+    seedBufferCL = new cl::Buffer(context, CL_MEM_READ_WRITE
+            | CL_MEM_USE_HOST_PTR, sizeof(uint) * seed_count, (void *) seeds);
+    try {
+        raytracer_kernel.setArg(SEEDS_CL_PARAM, sizeof(cl_mem),
+                &((*seedBufferCL)()));
+    } catch (cl::Error err) {
+        std::cout << "Err: " << err.err() << std::endl;
+    }
 }
 
 void RayTracerCL::cameraChanged() {
@@ -185,42 +212,39 @@ void RayTracerCL::updateCLCamera() {
             (void *) &cameraCL);
     raytracer_kernel.setArg(CAMERA_CL_PARAM, sizeof(cl_mem),
             &(cameraBufferCL()));
-
-    /*
-     * Seed buffer
-     */
-    uint pixelCount = width * height * 2;
-    uint seeds[pixelCount];
-    for (uint i = 0; i < pixelCount; ++i) {
-        seeds[i] = rand(); //OK to use consecutive rand values since kernel is using a different sequence algorithm.
-        if (seeds[i] < 2)
-            seeds[i] = 2;
-    }
-    seedBufferCL = cl::Buffer(context, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR,
-            sizeof(uint) * pixelCount, (void *) seeds);
-    try {
-        raytracer_kernel.setArg(SEEDS_CL_PARAM, sizeof(cl_mem),
-                &(seedBufferCL()));
-    } catch (cl::Error err) {
-        std::cout << "Err: " << err.err() << std::endl;
-    }
-
 }
 
 void RayTracerCL::rayTrace(cl_mem *buff, uint const width, uint const height,
         uint const progression) {
     if (width == 0 || height == 0)
         return;
-#ifdef DEBUG
-    clock_t startTicks = clock();
-#endif /* DEBUG   */
+
+    /*
+     * Calculate the number (2D) of work items (one for each pixel), with some constraints
+     * imposed by OpenCL:
+     *
+     * width is a multiple of 32 (workgroup width)
+     * height is a multiple of the calculated wg. height
+     */
+    int wgMultipleWidth = ((width & 0x1F) == 0) ? width : ((width & 0xFFFFFFE0)
+            + 0x20);
+    int wgMutipleHeight = (int) ceil(height / (float) ndRangeSizes[1])
+            * ndRangeSizes[1];
+
     /*
      * Update the camera
      */
-    if (camDirty || width != this->width || height != this->height) {
+    if (width != this->width || height != this->height) {
         camDirty = false;
         this->width = width;
         this->height = height;
+        updateCLCamera();
+        /*
+         * Using a seed buffer that is a multiple of the wg size ensures global memory access can be coalesced.
+         */
+        updateSeedBuffer(wgMultipleWidth, wgMutipleHeight);
+    } else if (camDirty) {
+        camDirty = false;
         updateCLCamera();
     }
 
@@ -251,11 +275,6 @@ void RayTracerCL::rayTrace(cl_mem *buff, uint const width, uint const height,
     //TODO: use KernelFunctor -- fixed NDRange...?
     try {
         /*
-         * Ensure width is a multiple of 32
-         */
-        int wgMultipleWidth = ((width & 0x1F) == 0) ? width : ((width
-                & 0xFFFFFFE0) + 0x20);
-        /*
          * Random Notes:
          *
          * NVidia QuadroFX 5800 supports 512 work-items per wg (32 x 16), however the ray tracer code uses too many registers
@@ -267,8 +286,6 @@ void RayTracerCL::rayTrace(cl_mem *buff, uint const width, uint const height,
          * Number of suggested work items is queried from OpenCL driver to get a good value based on hardware capabilities and
          * the number of regs actually used by the kernel.
          */
-        int wgMutipleHeight = (int) ceil(height / (float) ndRangeSizes[1])
-                * ndRangeSizes[1];
         cmdQueue.enqueueNDRangeKernel(raytracer_kernel, cl::NullRange,
                 cl::NDRange(wgMultipleWidth, wgMutipleHeight), cl::NDRange(
                         ndRangeSizes[0], ndRangeSizes[1]));
@@ -317,10 +334,10 @@ void RayTracerCL::createDefaultContext(const cl::Platform *platform,
     size_t dev_idx = 0;
     if (clDevices.size() > 1) {
         std::cout << std::endl << "Select a devices number (0 - "
-                << clDevices.size() - 1 << "): ";
+        << clDevices.size() - 1 << "): ";
         std::cin >> dev_idx;
         if (dev_idx >= clDevices.size() || dev_idx < 0)
-            dev_idx = 0;
+        dev_idx = 0;
     }
     std::cout << std::endl << "Selected Device: " << std::endl;
     device = clDevices[dev_idx];
@@ -333,8 +350,8 @@ void RayTracerCL::createDefaultContext(const cl::Platform *platform,
         context = cl::Context(CL_DEVICE_TYPE_GPU, cps, NULL, NULL, NULL);
     } catch (cl::Error err) {
         std::cout
-        << "Unable to create context for GPU device, falling back to CPU device."
-        << std::endl;
+                << "Unable to create context for GPU device, falling back to CPU device."
+                << std::endl;
         /*
          * CPU is rather unlikely to support GL sharing...
          */
@@ -342,7 +359,7 @@ void RayTracerCL::createDefaultContext(const cl::Platform *platform,
         context = cl::Context(CL_DEVICE_TYPE_CPU, cps, NULL, NULL, NULL);
         glSharing = false;
     }
-    device = context.getInfo<CL_CONTEXT_DEVICES>()[0];
+    device = context.getInfo<CL_CONTEXT_DEVICES> ()[0];
 #endif /* DEBUG */
 }
 
@@ -374,7 +391,7 @@ cl::Platform *RayTracerCL::getDefaultPlatform() {
             std::cout << std::endl << "Enter a platform number: ";
             std::cin >> platform;
             if (platform >= platforms.size() || platform < 0)
-                platform = 0;
+            platform = 0;
         }
         std::cout << std::endl << "Selected Platform: " << std::endl;
         ::printPlatformInfo(&platforms[platform]);

@@ -48,25 +48,16 @@ float4 directIllumination(const hit_info_t *hit, __constant Sphere *geometry, co
     return irradiance;
 }
 
-void init_bounce_ray(ray_t *ray, const hit_info_t *hit) {
-    ray->o.x = hit->hit_pt.x;
-    ray->o.y = hit->hit_pt.y;
-    ray->o.z = hit->hit_pt.z;
-
-    ray->tmin = SMALL_F;
-    ray->tmax = INFINITY;
-}
-
+/*!
+ * \brief Given an incident ray, intersection geometry, and a material, this computes a new ray by sampling the BRDF for the material.
+ * \param ray On input, ray->d indicates the incident direction, on output, the ray is fully initialized to a new ray pointing away from the intersection point.
+ * \param hit Description of the local geometry at the ray intersection point.
+ * \param hitSphere TODO: this should be a material.
+ * \param seed Seed data for uniform random number generation.
+ * \return true if the new sample ray has been initialized, false indicates that the ray should be terminated, and no more material sampling should occur (the ray is absorbed).
+ */
 bool sample_material(ray_t *ray, const hit_info_t *hit,
         constant Sphere *hitSphere, seed_value_t *seed) {
-    /*
-     * Generate random number to determine whether to sample specular, diffuse, or transmissive directions,
-     * and two more to pass to the sampling functions.  This is done outside of the conditional to avoid
-     * excessive serialization of work-item threads.
-     */
-    float p = frand(seed);
-    float r1 = frand(seed);
-    float r2 = frand(seed);
 
     ray->o.x = hit->hit_pt.x;
     ray->o.y = hit->hit_pt.y;
@@ -81,6 +72,14 @@ bool sample_material(ray_t *ray, const hit_info_t *hit,
     ray->tmin = SMALL_F;
     ray->tmax = INFINITY;
 
+    /*
+     * Generate random number to determine whether to sample specular, diffuse, or transmissive directions,
+     * and two more to pass to the sampling functions.  This is done outside of the conditional to avoid
+     * excessive serialization of work-item threads.
+     */
+    float p = frand(seed);
+    float r1 = frand(seed);
+    float r2 = frand(seed);
     if (p < hitSphere->ks) {
         const float inv_pdf = 1.0 / samplePhong(&(ray->d), hitSphere->specExp,
                 r1, r2);
@@ -145,7 +144,7 @@ bool sample_material(ray_t *ray, const hit_info_t *hit,
 __kernel void raytrace(__global float *out, __constant Camera *camera,
         __constant Sphere *spheres, uint const sphereCount,
         uint const imWidth, uint const imHeight, uint const sampleRate,
-        uint const maxDepth, uint const progressive, __global seed_value_t *seeds)
+        uint const maxDepth, uint const progressive, __global uint *seeds)
 {
     /*
      * The pixel x,y is identified by the global ids for the first two dimensions.
@@ -162,7 +161,11 @@ __kernel void raytrace(__global float *out, __constant Camera *camera,
     /*
      * Copy RNG seed data into private memory for faster access.
      */
-    seed_value_t seed = seeds[y * imWidth + x];
+    seed_value_t seed;
+
+    const uint seed_offs = y * imWidth + x;
+    seed.x = seeds[seed_offs];
+    seed.y = seeds[(imWidth * imHeight) + seed_offs];
 
     /*
      * Color variable used to accumulate samples
@@ -174,7 +177,6 @@ __kernel void raytrace(__global float *out, __constant Camera *camera,
         for (uint sy = 0; sy < sampleRate; ++sy)
         {
             //TODO: sample camera aperture for DoF
-            //TODO: There appears to be a bug with the initial hit on some surfaces, may be due to bad eye-rays.
             float4 rdirection = normalize(camera->view +
                     camera->right * ((float)(x + strat_rand(&seed, sx, sampleRate)) - ((float)imWidth)/2.0f) +
                     camera->up * ((float)(y + strat_rand(&seed, sy, sampleRate)) - ((float)imHeight)/2.0f));
@@ -249,12 +251,13 @@ __kernel void raytrace(__global float *out, __constant Camera *camera,
                         ray.o.x = hit.hit_pt.x;
                         ray.o.y = hit.hit_pt.y;
                         ray.o.z = hit.hit_pt.z;
-//                        /* convert wi to a vector pointing away from the hit point */
-//                        ray.d.x *= -1.0f;
-//                        ray.d.y *= -1.0f;
-//                        ray.d.z *= -1.0f;
-//                        /* And into shading coords */
-//                        ray.d = world_to_shading(ray.d, hit.surface_normal);
+                        //ray.d is not used by sampleLambert
+                        //                        /* convert wi to a vector pointing away from the hit point */
+                        //                        ray.d.x *= -1.0f;
+                        //                        ray.d.y *= -1.0f;
+                        //                        ray.d.z *= -1.0f;
+                        //                        /* And into shading coords */
+                        //                        ray.d = world_to_shading(ray.d, hit.surface_normal);
 
                         ray.tmin = SMALL_F;
                         ray.tmax = INFINITY;
@@ -280,6 +283,8 @@ __kernel void raytrace(__global float *out, __constant Camera *camera,
         pixelColor = mix(color , pixelColor, 1.0f / (float)(progressive));
     }
     vstore4(pixelColor, (y * imWidth + x), out);
-    seeds[y * imWidth + x] = seed;
+    seeds[seed_offs] = seed.x;
+    seeds[imWidth * imHeight + seed_offs] = seed.y;
+//    seeds[y * imWidth + x] = seed;
 }
 
