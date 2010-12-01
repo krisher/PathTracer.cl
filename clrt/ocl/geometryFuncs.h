@@ -7,6 +7,33 @@
 
 
 /*!
+ * \brief calculates a vector that is perpendicular to the specified vector.
+ * \param vec A unit length vector.
+ * \return A unit length vector that is perpendicular to vec.
+ */
+vec3 perpendicular_vector(const vec3 vec) {
+    vec3 tangentX;
+    if (fabs(vec.y) > 0.9f) { //Maximize the probability of taking one branch over the other for better branch coherency.
+        const float inv_len = rsqrt(vec.z * vec.z + vec.y * vec.y);
+        tangentX.x = 0.0f;
+        tangentX.y = -vec.z * inv_len;
+        tangentX.z = vec.y * inv_len;
+    } else {
+        const float inv_len = rsqrt(vec.z * vec.z + vec.x * vec.x);
+        tangentX.x = vec.z * inv_len;
+        tangentX.y = 0.0f;
+        tangentX.z = -vec.x * inv_len;
+    }
+    return tangentX;
+}
+
+vec3 cross_vec(const vec3 v1, const vec3 v2) {
+    return (vec3) {v1.y * v2.z - v1.z * v2.y, v1.z * v2.x - v1.x * v2.z, v1.x
+        * v2.y - v1.y * v2.x};
+}
+
+
+/*!
  * \brief Ray-Sphere intersection test
  * \param ray The ray to test intersection with.
  * \param center The sphere center.
@@ -121,6 +148,86 @@ float intersectsBox(const ray_t *ray, const float4 center, const float xSize,
     return nearIsect;
 }
 
+
+
+/*!
+ * \brief Moller-Trumbore ray/triangle intersection (based on Java implementation).
+ * \param ray The ray to test intersection with.  ray->tmax is updated with the intersection distance if one occurred.
+ * \param u Output for the barycentric u coordinate (edge between v0 -> v1)
+ * \param v Output for the barycentric v coordinate (edge between v0 -> v2)
+ * \param hit_tri Output for the index of the triangle that was hit, if any.
+ * \param triangleOffs The index into vert_indices of the triangle vertex indices (the three index values starting with triangleOffs define the triangle
+ * \param tri_verts The vertex data for triangles (3 floats per vertex).
+ * \param vert_indices The triangle data, represented as offsets into tri_verts for each vertex.
+ */
+bool intersects_triangle (
+		ray_t *ray,
+		float *u, /* output for barycentric isect coord */
+		float *v, /* output for barycentric isect coord */
+		unsigned int *hit_tri, /* output for triangle index if isect occurred */
+		const unsigned int triangleOffs, /* triangle index */
+		const __global vec3 *tri_verts, /* vertex buffer */
+		const __global int *vert_indices) /* triplets of vertex indices for each triangle */
+{
+	/* Load triangle verts from global memory */
+	const __global vec3 *vert0 = &tri_verts[vert_indices[triangleOffs]];
+	const __global vec3 *vert1 = &tri_verts[vert_indices[triangleOffs + 1]];
+	const __global vec3 *vert2 = &tri_verts[vert_indices[triangleOffs + 2]];
+
+	/* Compute edges */
+	const vec3 base_vert = *vert0;
+	vec3 e0 = *vert1;
+	e0.x -= base_vert.x;
+	e0.y -= base_vert.y;
+	e0.z -= base_vert.z;
+	vec3 e1 = *vert2;
+	e1.x -= base_vert.x;
+	e1.y -= base_vert.y;
+	e1.z -= base_vert.z;
+
+	const vec3 p = cross_vec(ray->d, e1);
+	const float divisor = DOT(p, e0);
+	/*
+	 * Ray nearly parallel to triangle plane, or degenerate triangle...
+	 */
+	if (divisor < SMALL_F && divisor > -SMALL_F) {
+		return false;
+	}
+
+	vec3 translated_origin = ray->o;
+	translated_origin.x -= base_vert.x;
+	translated_origin.y -= base_vert.y;
+	translated_origin.z -= base_vert.z;
+
+	const vec3 q = cross_vec(translated_origin, e0);
+	/*
+	 * Barycentric coords also result from this formulation, which could be useful for interpolating attributes
+	 * defined at the vertex locations:
+	 */
+	const float e0dist = DOT(p, translated_origin) / divisor;
+	if (e0dist < 0 || e0dist > 1) {
+		return false;
+	}
+
+	const float e1dist = DOT(q, ray->d) / divisor;
+	if (e1dist < 0 || e1dist + e0dist> 1) {
+		return false;
+	}
+
+	const float isectDist = DOT(q, e1) / divisor;
+
+	if (isectDist > ray->tmax || isectDist < ray->tmin) {
+		return false;
+	}
+
+	/* Found intersection, store tri index, isect dist, and barycentric coords. */
+	ray->tmax = isectDist;
+	*u = e0dist;
+	*v = e1dist;
+	*hit_tri = triangleOffs / 3;
+	return true;
+}
+
 int sceneIntersection( ray_t *ray, __constant Sphere *geometry, const uint n_geometry)
 {
     int hitObject = -1;
@@ -152,32 +259,6 @@ bool visibilityTest(const ray_t *ray, __constant Sphere * geometry, const uint n
         }
     }
     return true;
-}
-
-/*!
- * \brief calculates a vector that is perpendicular to the specified vector.
- * \param vec A unit length vector.
- * \return A unit length vector that is perpendicular to vec.
- */
-vec3 perpendicular_vector(const vec3 vec) {
-    vec3 tangentX;
-    if (fabs(vec.y) > 0.9f) { //Maximize the probability of taking one branch over the other for better branch coherency.
-        const float inv_len = rsqrt(vec.z * vec.z + vec.y * vec.y);
-        tangentX.x = 0.0f;
-        tangentX.y = -vec.z * inv_len;
-        tangentX.z = vec.y * inv_len;
-    } else {
-        const float inv_len = rsqrt(vec.z * vec.z + vec.x * vec.x);
-        tangentX.x = vec.z * inv_len;
-        tangentX.y = 0.0f;
-        tangentX.z = -vec.x * inv_len;
-    }
-    return tangentX;
-}
-
-vec3 cross_vec(const vec3 v1, const vec3 v2) {
-    return (vec3) {v1.y * v2.z - v1.z * v2.y, v1.z * v2.x - v1.x * v2.z, v1.x
-        * v2.y - v1.y * v2.x};
 }
 
 
