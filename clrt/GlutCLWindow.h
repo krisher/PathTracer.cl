@@ -7,6 +7,7 @@
 
 #include "GlutWindow.h"
 #include "RayTracerCL.h"
+#include <time.h>
 
 class GlutCLWindow : public GlutWindow
 {
@@ -36,6 +37,12 @@ class GlutCLWindow : public GlutWindow
   float azimuth;
   float elevation;
   float distance;
+
+  clock_t last_render_end;
+  unsigned int frame_counter;
+  double fps;
+
+  static const unsigned int AVG_FRAMES = 10;
 
   void allocatePBO();
   void rayTrace();
