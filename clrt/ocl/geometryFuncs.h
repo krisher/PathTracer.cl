@@ -229,38 +229,5 @@ bool intersects_triangle (
 	return true;
 }
 
-int sceneIntersection( ray_t *ray, __constant Sphere *geometry, const uint n_geometry)
-{
-    int hitObject = -1;
-    for (int sphereNum = 0; sphereNum < n_geometry; ++sphereNum)
-    {
-        __constant Sphere *sphere = &(geometry[sphereNum]);
-        float d = intersectSphere(ray, sphere->center, sphere->radius);
-        if (d > ray->tmin && d < ray->tmax)
-        {
-            hitObject = sphereNum;
-            ray->tmax = d;
-        }
-    }
-    return hitObject;
-}
-
-/*!
- * \brief Test to determine whether the specified ray intersects anything between it's tmin/tmax range values.
- *
- * \return true if the ray does not intersect anything in the range tmin -> tmax, false if it does intersect something.
- */
-bool visibilityTest(const ray_t *ray, __constant Sphere * geometry, const uint n_geometry)
-{
-    for (int sphereNum = 0; sphereNum < n_geometry; ++sphereNum) {
-        __constant Sphere *sphere = &(geometry[sphereNum]);
-        float d = intersectSphere(ray, sphere->center, sphere->radius);
-        if (d > ray->tmin && d < ray->tmax) {
-            return false;
-        }
-    }
-    return true;
-}
-
 
 #endif /* GEOMETRY_FUNCS_H */

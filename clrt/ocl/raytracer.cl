@@ -15,6 +15,42 @@
 #define BOX_WIDTH 6.0f
 #define BOX_HEIGHT 5.0f
 
+
+
+int scene_intersection( ray_t *ray, __constant Sphere *geometry, const uint n_geometry)
+{
+    int hitObject = -1;
+    for (int sphereNum = 0; sphereNum < n_geometry; ++sphereNum)
+    {
+        __constant Sphere *sphere = &(geometry[sphereNum]);
+        float d = intersectSphere(ray, sphere->center, sphere->radius);
+        if (d > ray->tmin && d < ray->tmax)
+        {
+            hitObject = sphereNum;
+            ray->tmax = d;
+        }
+    }
+    return hitObject;
+}
+
+/*!
+ * \brief Test to determine whether the specified ray intersects anything between it's tmin/tmax range values.
+ *
+ * \return true if the ray does not intersect anything in the range tmin -> tmax, false if it does intersect something.
+ */
+bool visibility_test(const ray_t *ray, __constant Sphere * geometry, const uint n_geometry)
+{
+    for (int sphereNum = 0; sphereNum < n_geometry; ++sphereNum) {
+        __constant Sphere *sphere = &(geometry[sphereNum]);
+        float d = intersectSphere(ray, sphere->center, sphere->radius);
+        if (d > ray->tmin && d < ray->tmax) {
+            return false;
+        }
+    }
+    return true;
+}
+
+
 /*!
  * Computes the direct illumination incident on a specified point.
  * \param hit The location and surface normal of the point to sample direct illumination at.
@@ -23,7 +59,7 @@
  * \param seed Random seed value, updated on output if used.
  * \return The irradiance incident on the specified hit point.
  */
-float4 directIllumination(const hit_info_t *hit, __constant Sphere *geometry, const uint n_geometry, seed_value_t *seed) {
+float4 sample_direct_illumination(const hit_info_t *hit, __constant Sphere *geometry, const uint n_geometry, seed_value_t *seed) {
     ray_t ray;
     ray.o.x = hit->hit_pt.x + hit->surface_normal.x * SMALL_F;
     ray.o.y = hit->hit_pt.y + hit->surface_normal.y * SMALL_F;
@@ -36,7 +72,7 @@ float4 directIllumination(const hit_info_t *hit, __constant Sphere *geometry, co
         {
             float pdf_inv = sphereEmissiveRadiance(&ray, light->center, light->radius, frand(seed), frand(seed));
             irradiance += light->emission * pdf_inv;
-            if (visibilityTest(&ray, geometry, n_geometry)) {
+            if (visibility_test(&ray, geometry, n_geometry)) {
                 const float cosWi = ray.d.x * hit->surface_normal.x + ray.d.y * hit->surface_normal.y + ray.d.z * hit->surface_normal.z;
                 if (cosWi > 0)
                 {
@@ -181,7 +217,7 @@ __kernel void raytrace(__global float *out, __constant Camera *camera,
             ray_t ray = {camera->position.x, camera->position.y, camera->position.z, rdirection.x, rdirection.y, rdirection.z, SMALL_F, INFINITY, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f, false};
             for (int rayDepth = 0; rayDepth <= maxDepth; ++rayDepth)
             {
-                int hitIdx = sceneIntersection( &ray, spheres, sphereCount);
+                int hitIdx = scene_intersection( &ray, spheres, sphereCount);
                 if (hitIdx >= 0)
                 {
 
@@ -213,7 +249,7 @@ __kernel void raytrace(__global float *out, __constant Camera *camera,
                      */
                     if (hitSphere->diffuse.w > 0.0f)
                     {
-                        const float4 direct = directIllumination(&hit, spheres, sphereCount, &seed);
+                        const float4 direct = sample_direct_illumination(&hit, spheres, sphereCount, &seed);
                         const float scale = hitSphere->diffuse.w * evaluateLambert();
                         pixelColor.x += ray.propagation.x * direct.x * hitSphere->diffuse.x * scale;
                         pixelColor.y += ray.propagation.y * direct.y * hitSphere->diffuse.y * scale;
@@ -237,7 +273,7 @@ __kernel void raytrace(__global float *out, __constant Camera *camera,
                         hit.hit_pt = (vec3) {ray.o.x + ray.d.x * ray.tmax, ray.o.y + ray.d.y * ray.tmax, ray.o.z + ray.d.z * ray.tmax};
                         boxNormal(&ray, &hit, BOX_WIDTH, BOX_HEIGHT, BOX_WIDTH); /* populate surface_normal */
 
-                        const float4 direct = directIllumination(&hit, spheres, sphereCount, &seed);
+                        const float4 direct = sample_direct_illumination(&hit, spheres, sphereCount, &seed);
                         const float scale = evaluateLambert();
                         ray.propagation.x *= 0.7f;
                         ray.propagation.y *= 0.7f;
