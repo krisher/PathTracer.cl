@@ -163,9 +163,9 @@ __kernel void raytrace(__global float *out, __constant Camera *camera,
      */
     seed_value_t seed;
 
-    const uint seed_offs = y * imWidth + x;
+    const uint seed_offs = y * get_global_size(0) + x;
     seed.x = seeds[seed_offs];
-    seed.y = seeds[(imWidth * imHeight) + seed_offs];
+    seed.y = seeds[(get_global_size(0) * get_global_size(1)) + seed_offs];
 
     /*
      * Color variable used to accumulate samples
@@ -284,7 +284,7 @@ __kernel void raytrace(__global float *out, __constant Camera *camera,
     }
     vstore4(pixelColor, (y * imWidth + x), out);
     seeds[seed_offs] = seed.x;
-    seeds[imWidth * imHeight + seed_offs] = seed.y;
+    seeds[get_global_size(0) * get_global_size(1) + seed_offs] = seed.y;
 //    seeds[y * imWidth + x] = seed;
 }
 
