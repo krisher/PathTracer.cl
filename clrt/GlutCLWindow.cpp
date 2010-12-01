@@ -12,6 +12,8 @@
 
 #include <iostream>
 #include <time.h>
+#include <string>
+#include <sstream>
 
 GlutCLWindow::GlutCLWindow(int width, int height) :
     GlutWindow(width, height, "OpenCL Ray Tracer") {
@@ -28,12 +30,21 @@ GlutCLWindow::GlutCLWindow(int width, int height) :
     pbo = NULL;
     clPBOBuff = NULL;
     frame_counter = 0;
+    fps = 0;
     allocatePBO();
 }
 
 GlutCLWindow::~GlutCLWindow() {
     // TODO: delete pbo, cl pbo.
     // Need GL Context current to delete, however since context is not shared, pbo should be destroyed when glut window is closed.
+}
+
+void drawString(float x, float y, const std::string &str) {
+    glRasterPos2f(x, y);
+    glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+    for (std::string::const_iterator itr = str.begin(); itr != str.end(); itr++) {
+        glutBitmapCharacter(GLUT_BITMAP_8_BY_13, *itr); //Automatically shifts matrix position for next char.
+    }
 }
 
 void GlutCLWindow::allocatePBO() {
@@ -155,21 +166,25 @@ void GlutCLWindow::glutDisplayCallback() {
     glDrawPixels(width, height, GL_RGBA, GL_FLOAT, 0);
     glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
 
+    if (reportFPS) {
+        if (++frame_counter == fpsAvgFrames) {
+            clock_t time = clock();
+            fps = CLOCKS_PER_SEC / ((time - last_render_end)
+                    / (double) fpsAvgFrames);
+            frame_counter = 0;
+            last_render_end = time;
+        }
+        std::ostringstream fpsStr;
+        fpsStr << "FPS: ";
+        fpsStr << fps;
+        drawString(0.0f + 20.0f / width, 1.0f - 20.0f / height, fpsStr.str());
+    }
     /*
      * Call glFinish() and
      * Flip the back/front buffer
      */
     glutSwapBuffers();
 
-    if (++frame_counter == AVG_FRAMES) {
-        clock_t time = clock();
-        double fps = CLOCKS_PER_SEC
-                / ((time - last_render_end) / (double)AVG_FRAMES);
-        std::cout << "FPS: " << fps << std::endl;
-        frame_counter = 0;
-        last_render_end = time;
-    }
-    //  glutPostRedisplay();
 }
 
 void GlutCLWindow::rayTrace() {

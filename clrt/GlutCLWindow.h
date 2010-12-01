@@ -42,7 +42,8 @@ class GlutCLWindow : public GlutWindow
   unsigned int frame_counter;
   double fps;
 
-  static const unsigned int AVG_FRAMES = 10;
+  static const bool reportFPS = true;
+  static const unsigned int fpsAvgFrames = 10;
 
   void allocatePBO();
   void rayTrace();
