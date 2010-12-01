@@ -22,7 +22,9 @@ float intersectSphere(const ray_t *ray, float4 const center, float const radius)
     float D = B * B - (originFromCenterDistSq - radius * radius);
     if (D > 0) {
         float sqrtD = sqrt(D);
-        return (sqrtD < -B) ? -B - sqrtD : -B + sqrtD;
+        /* return the smallest positive value */
+        if (-B - sqrtD > ray->tmin) return -B-sqrtD;
+        return -B + sqrtD;
     }
     return 0.0f;
 }

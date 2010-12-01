@@ -34,7 +34,6 @@ float4 cos_sample_hemisphere(const float r1, const float r2) {
             * cos_theta);
 }
 
-
 /*!
  * \brief Change of basis function to convert from shading coordinates (z => shading normal, x,y in tangent plane) to world coordinates, given a shading normal vector.
  *
@@ -181,41 +180,37 @@ bool sampleRefraction(vec3 *transmission, ray_t *ray, const hit_info_t *hit,
         vec3
                 wi_shading =
                         (vec3) {-ray->d.x * ref_idx_ratio, -ray->d.y * ref_idx_ratio, cos_theta};
-        //XXX Commented out for debugging
-        //        if (blurExp < 100000.0f) {
-        //            /*
-        //             * Identical to Phong, except we substitute the refraction direction
-        //             * for the mirror reflection vector.
-        //             */
-        //            float cos_a = pow(r1, 1.0f / (blurExp + 1.0f));
-        //            float const sinTheta = sqrt(1.0f - cos_a * cos_a);
-        //            float const phi = M_2PI_F * r2;
-        //
-        //            wi_shading.x = cos(phi) * sinTheta;
-        //            wi_shading.y = sin(phi) * sinTheta;
-        //            wi_shading.z = cos_a;
-        //
-        //            float wo_dot_wh = DOT(ray->d, wi_shading);
-        //            wi_shading.x = -ray->d.x + 2.0f * wo_dot_wh * wi_shading.x;
-        //            wi_shading.y = -ray->d.y + 2.0f * wo_dot_wh * wi_shading.y;
-        //            wi_shading.z = -ray->d.z + 2.0f * wo_dot_wh * wi_shading.z;
-        //        }
-        //XXX Commented out for debug
+        if (blurExp < 100000.0f) {
+            /*
+             * Identical to Phong, except we substitute the refraction direction
+             * for the mirror reflection vector.
+             */
+            float cos_a = pow(r1, 1.0f / (blurExp + 1.0f));
+            float const sinTheta = sqrt(1.0f - cos_a * cos_a);
+            float const phi = M_2PI_F * r2;
+
+            wi_shading.x = cos(phi) * sinTheta;
+            wi_shading.y = sin(phi) * sinTheta;
+            wi_shading.z = cos_a;
+
+            float wo_dot_wh = DOT(ray->d, wi_shading);
+            wi_shading.x = -ray->d.x + 2.0f * wo_dot_wh * wi_shading.x;
+            wi_shading.y = -ray->d.y + 2.0f * wo_dot_wh * wi_shading.y;
+            wi_shading.z = -ray->d.z + 2.0f * wo_dot_wh * wi_shading.z;
+        }
         ray->d = wi_shading;
 
         /* Fresnel Dielectric transmission based on PBRT */
-        //XXX Commented out for debugging.
-        //        cos_theta = fabs(cos_theta);
-        //        float parl = (eo * cos_wo - ei * cos_theta) / (eo * cos_wo + ei
-        //                * cos_theta);
-        //        float perp = (ei * cos_wo - eo * cos_theta) / (ei * cos_wo + eo
-        //                * cos_theta);
-        //        float fresnel = (parl * parl + perp * perp) * 0.5f;
-        //        fresnel = (1.0f - fresnel) / cos_theta;
-        //        (*transmission) *= fresnel;
-        //XXX Introduced for debug
-        //        ray->d = shading_to_world(hit->surface_normal, -ray->d.x, -ray->d.y,
-        //                ray->d.z);
+        cos_theta = fabs(cos_theta);
+        float parl = (eo * cos_wo - ei * cos_theta) / (eo * cos_wo + ei
+                * cos_theta);
+        float perp = (ei * cos_wo - eo * cos_theta) / (ei * cos_wo + eo
+                * cos_theta);
+        float fresnel = (parl * parl + perp * perp) * 0.5f;
+        fresnel = (1.0f - fresnel) / cos_theta;
+        transmission->x *= fresnel;
+        transmission->y *= fresnel;
+        transmission->z *= fresnel;
     }
     return entering;
 }

@@ -100,7 +100,6 @@ bool sample_material(ray_t *ray, const hit_info_t *hit,
         ray->propagation.x *= hitSphere->diffuse.x; //* evaluateLambert() * DOT(ray.d, hit.surface_normal)/ pdf;
         ray->propagation.y *= hitSphere->diffuse.y;
         ray->propagation.z *= hitSphere->diffuse.z;
-
     } else if (p < (hitSphere->ks + hitSphere->diffuse.w
                     + hitSphere->extinction.w)) {
         if (sampleRefraction(&(ray->propagation), ray, hit, hitSphere->ior,
@@ -113,7 +112,6 @@ bool sample_material(ray_t *ray, const hit_info_t *hit,
             ray->extinction.y = 0;
             ray->extinction.z = 0;
         }
-        ray->diffuse_bounce = false;
         /* multiply by cos(theta_wi) */
         const float cos_theta_wi = fabs(ray->d.z);
         ray->propagation.x *= cos_theta_wi;
@@ -285,6 +283,6 @@ __kernel void raytrace(__global float *out, __constant Camera *camera,
     vstore4(pixelColor, (y * imWidth + x), out);
     seeds[seed_offs] = seed.x;
     seeds[get_global_size(0) * get_global_size(1) + seed_offs] = seed.y;
-//    seeds[y * imWidth + x] = seed;
+    //    seeds[y * imWidth + x] = seed;
 }
 
