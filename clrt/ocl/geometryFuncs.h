@@ -165,10 +165,11 @@ bool intersects_triangle (
 		float *u, /* output for barycentric isect coord */
 		float *v, /* output for barycentric isect coord */
 		unsigned int *hit_tri, /* output for triangle index if isect occurred */
-		const unsigned int triangleOffs, /* triangle index */
+		const unsigned int triangle_idx, /* triangle index */
 		const __global vec3 *tri_verts, /* vertex buffer */
 		const __global int *vert_indices) /* triplets of vertex indices for each triangle */
 {
+	const uint triangleOffs = triangle_idx * 3;
 	/* Load triangle verts from global memory */
 	const __global vec3 *vert0 = &tri_verts[vert_indices[triangleOffs]];
 	const __global vec3 *vert1 = &tri_verts[vert_indices[triangleOffs + 1]];
