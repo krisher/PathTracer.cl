@@ -227,7 +227,7 @@ bool sampleRefraction(vec3 *transmission, ray_t *ray, const hit_info_t *hit,
  * \param r2 A uniform random variable.
  * \return The inverse probability of the computed sample direction over all possible directions.
  */
-float sphereEmissiveRadiance(ray_t *ray, float4 const sphere_center,
+float sphereEmissiveRadiance(ray_t *ray, vec3 const sphere_center,
         float const radius, float const r1, float const r2) {
 
     vec3 direction = (vec3) {sphere_center.x - ray->o.x, sphere_center.y

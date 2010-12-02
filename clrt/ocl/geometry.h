@@ -14,52 +14,56 @@
  * These definitions differ from the standard khronos definitions
  */
 #if defined( __SSE__ )
-    #include <xmmintrin.h>
+#include <xmmintrin.h>
 #if defined( __GNUC__ )
-typedef float __cl_float4   __attribute__((vector_size(16)));
-    #else
+typedef float __cl_float4 __attribute__((vector_size(16)));
+#else
 typedef __m128 __cl_float4;
-    #endif
-    #define __CL_FLOAT4__   1
+#endif
+#define __CL_FLOAT4__   1
 #endif
 #if defined( __GNUC__ )
 #define CL_ALIGNED(_x)      __attribute__ ((aligned(_x)))
 #elif defined( _WIN32) && (_MSC_VER)
-    #include <crtdefs.h>
+#include <crtdefs.h>
 #define CL_ALIGNED(_x)         _CRT_ALIGN(_x)
 #else
-   #warning  Need to implement some method to align data here
+#warning  Need to implement some method to align data here
 #define  CL_ALIGNED(_x)
 #endif
 
-typedef union
-{
-  cl_float  CL_ALIGNED(16) s[4];
+typedef union {
+    cl_float CL_ALIGNED(16) s[4];
 #if defined( __GNUC__) && ! defined( __STRICT_ANSI__ )
-  __extension__ struct{ cl_float   x, y, z, w; };
-  __extension__ struct{ cl_float   s0, s1, s2, s3; };
-  __extension__ struct{ cl_float2  lo, hi; };
+    __extension__
+    struct {
+        cl_float x, y, z, w;
+    };__extension__
+    struct {
+        cl_float s0, s1, s2, s3;
+    };__extension__
+    struct {
+        cl_float2 lo, hi;
+    };
 #endif
 #if defined( __CL_FLOAT2__)
-  __cl_float2     v2[2];
+    __cl_float2 v2[2];
 #endif
 #if defined( __CL_FLOAT4__)
-  __cl_float4     v4;
+    __cl_float4 v4;
 #endif
-}float4;
+} float4;
 #endif /* __cplusplus */
-
 
 /* Small floating point number used to offset ray origins to avoid roundoff error issues. */
 #define SMALL_F 1e-4f
 /*!
  * \brief 3D vector storage
  */
-typedef struct 
-{
-  float x;
-  float y;
-  float z;
+typedef struct {
+    float x;
+    float y;
+    float z;
 } vec3;
 
 /*!
@@ -104,7 +108,6 @@ typedef struct {
     vec3 surface_normal;
 } hit_info_t;
 
-
 /*!
  * \brief camera model.
  *
@@ -112,73 +115,51 @@ typedef struct {
  * passing from position through ( up * (pixelY - height/2.0) + right * (pixelX - width/2.0) + view
  * produces the desired field of view.
  */
-typedef struct 
-{
-  float4 view;
-  float4 up;
-  float4 right;
-  float4 position;
+typedef struct {
+    float4 view;
+    float4 up;
+    float4 right;
+    float4 position;
 } Camera;
+
+/*!
+ * Material parameters.
+ */
+typedef struct { //64B
+    /*! Diffuse reflectance */
+    vec3 diffuse;
+    /*! probability of diffuse reflectance */
+    float kd;
+    /*! extinction color (amount of each color component transmitted per unit distance) */
+    vec3 extinction;
+    /*! probability of transmission */
+    float kt;
+    /*! emission color (light source) */
+    vec3 emission;
+    /*! emission power, must be non-zero if this is an emissive material. */
+    float emission_power;
+    /*! probability of specular reflection */
+    float ks;
+    /*! specular exponent */
+    float specExp;
+    /*! index of refraction */
+    float ior;
+    /*! refractive exponent. */
+    float refExp;
+} material_t;
 
 /*!
  * Sphere geometry, with material properties for diffuse, specular, refractive, and emissive components.
  */
-typedef struct
-{
-  /*!
-   * \breif Stores diffuse color in x=>r, y=>g, z=>b and w=>kd (probability of diffuse bounce)
-   */
-  float4 diffuse;
-  /*!
-   * \brief Stores extinction color for transparency in x=>r, y=>g, z=>b and w->kt (proability of transmission)
-   */
-  float4 extinction;
-
-  /*!
-   * The emissive color of the sphere.  emission.w must be non-zero for emissive term to be
-   * taken into account.
-   */
-  float4 emission;
-  /*!
-   * \brief Center point of the sphere.
-   */
-  float4 center;
-  /*!
-   * \brief Probability of specular bounce
-   */
-  float ks;
-  /*!
-   * \brief Index of Refraction
-   */
-  float ior;
-  /*!
-   * \brief Modified-phong specular exponent
-   */
-  float specExp;
-  /*!
-   * \brief Sphere radius.
-   */
-  float radius;
+typedef struct {
+    /*! \brief Center point of the sphere.  */
+    vec3 center;
+    /*! \brief Sphere radius.  */
+    float radius;
+    /*! \brief sphere material */
+    material_t mat;
 
 } Sphere;
-
-
-#define initSphere(sphere) \
-  sphere.center.x = 0.0f; \
-  sphere.center.y = 0.0f; \
-  sphere.center.z = 0.0f; \
-  sphere.center.w = 0.0f; \
-  sphere.radius = 1.0f; \
-  sphere.emission.x = 0.0f; \
-  sphere.emission.y = 0.0f; \
-  sphere.emission.z = 0.0f; \
-  sphere.emission.w = 0.0f; \
-  sphere.ks = 0.0f; \
-  sphere.diffuse.w = 0.0f; \
-  sphere.extinction.x = 0.0f; \
-  sphere.extinction.y = 0.0f; \
-  sphere.extinction.z = 0.0f; \
-  sphere.extinction.w = 0.0f;
 
 
 #ifdef __cplusplus

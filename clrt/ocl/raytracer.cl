@@ -65,15 +65,16 @@ float4 sample_direct_illumination(const hit_info_t *hit, __constant Sphere *geom
     for (uint sphereNum = 0; sphereNum < n_geometry; ++sphereNum)
     {
         constant Sphere *light = &(geometry[sphereNum]);
-        if (light->emission.w != 0)
+        if (light->mat.emission_power != 0)
         {
-            float pdf_inv = sphereEmissiveRadiance(&ray, light->center, light->radius, frand(seed), frand(seed));
-            irradiance += light->emission * pdf_inv;
+            sphereEmissiveRadiance(&ray, light->center, light->radius, frand(seed), frand(seed));
             if (visibility_test(&ray, geometry, n_geometry)) {
                 const float cosWi = ray.d.x * hit->surface_normal.x + ray.d.y * hit->surface_normal.y + ray.d.z * hit->surface_normal.z;
                 if (cosWi > 0)
                 {
-                    irradiance += light->emission * cosWi;
+                    irradiance.x += light->mat.emission.x * cosWi;
+                    irradiance.y += light->mat.emission.y * cosWi;
+                    irradiance.z += light->mat.emission.z * cosWi;
                 }
             }
         }
@@ -90,7 +91,7 @@ float4 sample_direct_illumination(const hit_info_t *hit, __constant Sphere *geom
  * \return true if the new sample ray has been initialized, false indicates that the ray should be terminated, and no more material sampling should occur (the ray is absorbed).
  */
 bool sample_material(ray_t *ray, const hit_info_t *hit,
-        constant Sphere *hitSphere, seed_value_t *seed) {
+        constant material_t *mat, seed_value_t *seed) {
 
     ray->o.x = hit->hit_pt.x;
     ray->o.y = hit->hit_pt.y;
@@ -113,15 +114,15 @@ bool sample_material(ray_t *ray, const hit_info_t *hit,
     float p = frand(seed);
     float r1 = frand(seed);
     float r2 = frand(seed);
-    if (p < hitSphere->ks) {
-        const float inv_pdf = 1.0 / samplePhong(&(ray->d), hitSphere->specExp,
+    if (p < mat->ks) {
+        const float inv_pdf = 1.0 / samplePhong(&(ray->d), mat->specExp,
                 r1, r2);
         ray->diffuse_bounce = false;
         /* cos (Wi) term */
         ray->propagation.x *= ray->d.z * inv_pdf;
         ray->propagation.y *= ray->d.z * inv_pdf;
         ray->propagation.z *= ray->d.z * inv_pdf;
-    } else if (p < (hitSphere->ks + hitSphere->diffuse.w)) {
+    } else if (p < (mat->ks + mat->kd)) {
         //const float pdf =
         sampleLambert(&(ray->d), r1, r2);
         ray->diffuse_bounce = true;
@@ -130,16 +131,16 @@ bool sample_material(ray_t *ray, const hit_info_t *hit,
          *
          * Assumes that sampleLambert has a cosine distribution, so that everything cancels except the diffuse color.
          */
-        ray->propagation.x *= hitSphere->diffuse.x; //* evaluateLambert() * DOT(ray.d, hit.surface_normal)/ pdf;
-        ray->propagation.y *= hitSphere->diffuse.y;
-        ray->propagation.z *= hitSphere->diffuse.z;
-    } else if (p < (hitSphere->ks + hitSphere->diffuse.w
-                    + hitSphere->extinction.w)) {
-        if (sampleRefraction(&(ray->propagation), ray, hit, hitSphere->ior,
-                        1000000.0f, r1, r2)) {
-            ray->extinction.x = hitSphere->extinction.x;
-            ray->extinction.y = hitSphere->extinction.y;
-            ray->extinction.z = hitSphere->extinction.z;
+        ray->propagation.x *= mat->diffuse.x; //* evaluateLambert() * DOT(ray.d, hit.surface_normal)/ pdf;
+        ray->propagation.y *= mat->diffuse.y;
+        ray->propagation.z *= mat->diffuse.z;
+    } else if (p < (mat->ks + mat->kd
+                    + mat->kt)) {
+        if (sampleRefraction(&(ray->propagation), ray, hit, mat->ior,
+                        mat->refExp, r1, r2)) {
+            ray->extinction.x = mat->extinction.x;
+            ray->extinction.y = mat->extinction.y;
+            ray->extinction.z = mat->extinction.z;
         } else {
             ray->extinction.x = 0;
             ray->extinction.y = 0;
@@ -263,28 +264,28 @@ __kernel void raytrace(__global float *out, __constant Camera *camera,
                     /*
                      * Emissive contribution on surfaces that are not sampled for direct illumination.
                      */
-                    if (!ray.diffuse_bounce)
+                    if (!ray.diffuse_bounce && hitSphere->mat.emission_power != 0)
                     {
-                        pixelColor.x += ray.propagation.x * hitSphere->emission.x;
-                        pixelColor.y += ray.propagation.y * hitSphere->emission.y;
-                        pixelColor.z += ray.propagation.z * hitSphere->emission.z;
+                        pixelColor.x += ray.propagation.x * hitSphere->mat.emission.x;
+                        pixelColor.y += ray.propagation.y * hitSphere->mat.emission.y;
+                        pixelColor.z += ray.propagation.z * hitSphere->mat.emission.z;
                     }
 
                     /*
                      * Sample direct illumination
                      */
-                    if (hitSphere->diffuse.w > 0.0f)
+                    if (hitSphere->mat.kd > 0.0f)
                     {
                         const float4 direct = sample_direct_illumination(&hit, spheres, sphereCount, &seed);
-                        const float scale = hitSphere->diffuse.w * evaluateLambert();
-                        pixelColor.x += ray.propagation.x * direct.x * hitSphere->diffuse.x * scale;
-                        pixelColor.y += ray.propagation.y * direct.y * hitSphere->diffuse.y * scale;
-                        pixelColor.z += ray.propagation.z * direct.z * hitSphere->diffuse.z * scale;
+                        const float scale = hitSphere->mat.kd * evaluateLambert();
+                        pixelColor.x += ray.propagation.x * direct.x * hitSphere->mat.diffuse.x * scale;
+                        pixelColor.y += ray.propagation.y * direct.y * hitSphere->mat.diffuse.y * scale;
+                        pixelColor.z += ray.propagation.z * direct.z * hitSphere->mat.diffuse.z * scale;
                     }
 
                     if (rayDepth == maxDepth) break;
 
-                    if (!sample_material(&ray, &hit, hitSphere, &seed)) {
+                    if (!sample_material(&ray, &hit, &(hitSphere->mat), &seed)) {
                         break;
                     }
 

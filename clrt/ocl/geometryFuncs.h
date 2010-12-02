@@ -38,7 +38,7 @@ vec3 cross_vec(const vec3 v1, const vec3 v2) {
  * \param radius The sphere radius.
  * \return The distance to intersection, or 0 if there was no intersection.
  */
-float intersectSphere(const ray_t *ray, float4 const center, float const radius) {
+float intersectSphere(const ray_t *ray, vec3 const center, float const radius) {
     float tOx = ray->o.x - center.x;
     float tOy = ray->o.y - center.y;
     float tOz = ray->o.z - center.z;
@@ -55,7 +55,7 @@ float intersectSphere(const ray_t *ray, float4 const center, float const radius)
     return 0.0f;
 }
 
-void sphereNormal(hit_info_t *hit, float4 const center, float const radius) {
+void sphereNormal(hit_info_t *hit, vec3 const center, float const radius) {
     const float inv_radius = 1.0f / radius;
     hit->surface_normal.x = (hit->hit_pt.x - center.x) * inv_radius;
     hit->surface_normal.y = (hit->hit_pt.y - center.y) * inv_radius;

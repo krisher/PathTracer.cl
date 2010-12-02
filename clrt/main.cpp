@@ -9,110 +9,112 @@
 #include "gmtl/Point.h"
 #include "geometry.h"
 
-int main(void) 
-{
-  GlutCLWindow window(512,512);
 
-  Sphere sphere;
-  initSphere(sphere);
-  sphere.diffuse.x = 0.0f;
-  sphere.diffuse.y = 0.7f;
-  sphere.diffuse.z = 0.7f;
-  sphere.diffuse.w = 1.0f;
-  sphere.center.y = -4.0f;
-  sphere.center.x = -2.0f;
-  sphere.center.z = -2.0f;
-  sphere.ks = 0.f;
-  sphere.radius = 1.0f;
-  window.rayTracer.addSphere(sphere);
+void init_material(material_t *mat) {
+    mat->diffuse.x = 0.0f;
+    mat->diffuse.y = 0.0f;
+    mat->diffuse.z = 0.0f;
+    mat->kd = 0.0f;
 
-//  sphere.diffuse.x = 0.7f;
-//  sphere.diffuse.y = 0.7f;
-//  sphere.diffuse.z = 0.0f;
-//  sphere.diffuse.w = 1.0f;
-//  sphere.center.y = -4.0f;
-//  sphere.center.x = 2.0f;
-//  sphere.center.z = 2.0f;
-//  sphere.ks = 0.f;
-//  sphere.radius = 1.0f;
-//  window.rayTracer.addSphere(sphere);
-//
-  sphere.diffuse.x = 0.0f;
-  sphere.diffuse.y = 0.0f;
-  sphere.diffuse.z = 0.0f;
-  sphere.diffuse.w = 0.0f;
-  sphere.center.y = -3.0f;
-  sphere.center.x = 2.0f;
-  sphere.center.z = 2.0f;
-  sphere.ks = 0.2f;
-  sphere.ior = 1.1f;
-  sphere.extinction.x = 0.95f;
-  sphere.extinction.y = 0.85f;
-  sphere.extinction.z = 0.90f;
-  sphere.extinction.w = 0.8f;
-  sphere.specExp = 100000.0f;
-  sphere.radius = 1.0f;
-  window.rayTracer.addSphere(sphere);
+    mat->extinction.x = 0.0f;
+    mat->extinction.y = 0.0f;
+    mat->extinction.z = 0.0f;
+    mat->kt = 0.0f;
 
+    mat->emission.x = 0.0f;
+    mat->emission.y = 0.0f;
+    mat->emission.z = 0.0f;
+    mat->emission_power = 0.0f;
 
-  initSphere(sphere);
-  sphere.diffuse.x = 0.8f;
-  sphere.diffuse.y = 0.8f;
-  sphere.diffuse.z = 0.8f;
-  sphere.diffuse.w = 0.0f;
-  sphere.center.y = -4.0f;
-  sphere.center.x = 0.0f;
-  sphere.center.z = 0.0f;
-  sphere.ks = 1.0f;
-  sphere.specExp = 1000000.0f;
-  sphere.radius = 1.0f;
-  window.rayTracer.addSphere(sphere);
+    mat->ks = 0.0f;
+    mat->specExp = 1000000.0f;
+    mat->ior = 1.0f;
+    mat->refExp = 1000000.0f;
+}
 
-  sphere.diffuse.x = 0.7f;
-  sphere.diffuse.y = 0.7f;
-  sphere.diffuse.z = 0.0f;
-  sphere.diffuse.w = 0.2f;
-  sphere.center.y = -4.0f;
-  sphere.center.x = 2.0f;
-  sphere.center.z = -2.0f;
-  sphere.ks = 0.8f;
-  sphere.specExp = 100.0f;
-  sphere.radius = 1.0f;
-  window.rayTracer.addSphere(sphere);
+void init_sphere(Sphere *sphere) {
+  sphere->center.x = 0.0f;
+  sphere->center.y = 0.0f;
+  sphere->center.z = 0.0f;
+  sphere->radius = 1.0f;
 
+  init_material(&(sphere->mat));
+}
 
-  sphere.diffuse.x = 0.7f;
-  sphere.diffuse.y = 0.0f;
-  sphere.diffuse.z = 0.8f;
-  sphere.diffuse.w = 0.6f;
-  sphere.center.y =  -4.0f;
-  sphere.center.x = -2.0f;
-  sphere.center.z =  2.0f;
-  sphere.ks = 0.4f;
-  sphere.specExp = 1000.0f;
-  sphere.radius = 1.0f;
-  window.rayTracer.addSphere(sphere);
+int main(void) {
+    GlutCLWindow window(512, 512);
 
+    Sphere sphere;
+    init_sphere(&sphere);
+    sphere.center.y = -4.0f;
+    sphere.center.x = -2.0f;
+    sphere.center.z = -2.0f;
+    sphere.mat.kd = 1.0f;
+    sphere.mat.diffuse.x = 0.0f;
+    sphere.mat.diffuse.y = 0.7f;
+    sphere.mat.diffuse.z = 0.7f;
+    window.rayTracer.addSphere(sphere);
 
+    init_sphere(&sphere);
+    sphere.center.y = -3.0f;
+    sphere.center.x = 2.0f;
+    sphere.center.z = 2.0f;
+    sphere.mat.ks = 0.2f;
+    sphere.mat.kt = 0.8f;
+    sphere.mat.extinction.x = 0.95f;
+    sphere.mat.extinction.y = 0.85f;
+    sphere.mat.extinction.z = 0.90f;
+    sphere.mat.ior = 1.1f;
+    window.rayTracer.addSphere(sphere);
 
-  sphere.center.x = 0.0f;
-  sphere.center.y = 4.0f;
-  sphere.center.z = 2.0f;
-  sphere.diffuse.w = 0.0;
-  sphere.emission.x = 1.1f;
-  sphere.emission.y = 1.1f;
-  sphere.emission.z = 1.1f;
-  sphere.emission.w = 1.0;
-  sphere.radius = 0.5f;
-  sphere.ks = 0.0f;
-  sphere.extinction.w = 0;
-  window.rayTracer.addSphere(sphere);
+    init_sphere(&sphere);
+    sphere.center.y = -4.0f;
+    sphere.center.x = 0.0f;
+    sphere.center.z = 0.0f;
+    sphere.mat.ks = 1.0f;
+    window.rayTracer.addSphere(sphere);
 
-  window.rayTracer.setSampleRate(2);
-  window.rayTracer.setMaxPathDepth(6);
-  window.rayTracer.setCameraSpherical(gmtl::Point3f(0,-4,-0), 40.0f, 105.0f, 5);
-  window.setProgressive(10000);
+    init_sphere(&sphere);
+    sphere.center.y = -4.0f;
+    sphere.center.x = 2.0f;
+    sphere.center.z = -2.0f;
+    sphere.mat.kd = 0.2f;
+    sphere.mat.ks = 0.8f;
+    sphere.mat.diffuse.x = 0.7f;
+    sphere.mat.diffuse.y = 0.7f;
+    sphere.mat.diffuse.z = 0.0f;
+    sphere.mat.specExp = 100.0f;
+    window.rayTracer.addSphere(sphere);
 
-  glutMainLoop();
+    init_sphere(&sphere);
+    sphere.center.y = -4.0f;
+    sphere.center.x = -2.0f;
+    sphere.center.z = 2.0f;
+    sphere.mat.kd = 0.6f;
+    sphere.mat.ks = 0.4f;
+    sphere.mat.diffuse.x = 0.7f;
+    sphere.mat.diffuse.y = 0.0f;
+    sphere.mat.diffuse.z = 0.8f;
+    sphere.mat.specExp = 1000.0f;
+    window.rayTracer.addSphere(sphere);
+
+    init_sphere(&sphere);
+    sphere.center.x = 0.0f;
+    sphere.center.y = 4.0f;
+    sphere.center.z = 2.0f;
+    sphere.radius = 0.5f;
+    sphere.mat.emission_power = 1.0;
+    sphere.mat.emission.x = 1.1f;
+    sphere.mat.emission.y = 1.1f;
+    sphere.mat.emission.z = 1.1f;
+    window.rayTracer.addSphere(sphere);
+
+    window.rayTracer.setSampleRate(2);
+    window.rayTracer.setMaxPathDepth(6);
+    window.rayTracer.setCameraSpherical(gmtl::Point3f(0, -4, -0), 40.0f,
+            105.0f, 5);
+    window.setProgressive(10000);
+
+    glutMainLoop();
 
 }
