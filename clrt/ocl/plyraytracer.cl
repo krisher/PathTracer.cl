@@ -30,10 +30,11 @@
  *        the value determines the mixing weight.
  * \param seeds Seed data for the random number generator.  There should be one seed per pixel.  These values are used to generate a uniform random number sequence for each pixel, however the seed data is not updated in global memory.
  */
-__kernel void raytrace(__global float *out, __constant Camera *camera,
+__kernel void raytrace_tris(__global float *out, __constant Camera *camera,
 		__constant Sphere *spheres, uint const sphereCount,
 		uint const imWidth, uint const imHeight, uint const sampleRate,
-		uint const maxDepth, uint const progressive, __global uint *seeds)
+		uint const maxDepth, uint const progressive, __global uint *seeds,
+		__global const vec3 *tri_verts, __global const int *tri_vert_idx, uint const n_tris)
 {
 	/*
 	 * The pixel x,y is identified by the global ids for the first two dimensions.
@@ -70,19 +71,19 @@ __kernel void raytrace(__global float *out, __constant Camera *camera,
 					camera->right * ((float)(x + strat_rand(&seed, sx, sampleRate)) - ((float)imWidth)/2.0f) +
 					camera->up * ((float)(y + strat_rand(&seed, sy, sampleRate)) - ((float)imHeight)/2.0f));
 			ray_t ray = {camera->position.x, camera->position.y, camera->position.z, rdirection.x, rdirection.y, rdirection.z, SMALL_F, INFINITY, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f, false};
+			triangle_t hit_tri;
 			for (int rayDepth = 0; rayDepth <= maxDepth; ++rayDepth)
 			{
-				int hitIdx = scene_intersection( &ray, spheres, sphereCount);
-				if (hitIdx >= 0)
+				int tri_hit_idx = scene_intersection_tri(&ray, tri_verts, tri_vert_idx, n_tris);
+				if (tri_hit_idx >= 0)
 				{
-
-					constant Sphere *hitSphere = &spheres[hitIdx];
+					get_triangle(&hit_tri, tri_hit_idx, tri_verts, tri_vert_idx);
 					/*
 					 * Update origin to new intersect point
 					 */
 					hit_info_t hit;
 					hit.hit_pt = (vec3) {ray.o.x + ray.d.x * ray.tmax, ray.o.y + ray.d.y * ray.tmax, ray.o.z + ray.d.z * ray.tmax};
-					sphereNormal(&hit, hitSphere->center, hitSphere->radius);
+					hit.surface_normal = cross_vec(hit_tri.e2, hit_tri.e1);
 
 					/* Apply extinction due to simple participating media */
 					if (ray.extinction.x > 0.0f) ray.propagation.x *= exp(log(ray.extinction.x) * ray.tmax);
@@ -92,30 +93,30 @@ __kernel void raytrace(__global float *out, __constant Camera *camera,
 					/*
 					 * Emissive contribution on surfaces that are not sampled for direct illumination.
 					 */
-					if (!ray.diffuse_bounce && hitSphere->mat.emission_power != 0)
-					{
-						pixelColor.x += ray.propagation.x * hitSphere->mat.emission.x;
-						pixelColor.y += ray.propagation.y * hitSphere->mat.emission.y;
-						pixelColor.z += ray.propagation.z * hitSphere->mat.emission.z;
-					}
+//					if (!ray.diffuse_bounce && hitSphere->mat.emission_power != 0)
+//					{
+//						pixelColor.x += ray.propagation.x * hitSphere->mat.emission.x;
+//						pixelColor.y += ray.propagation.y * hitSphere->mat.emission.y;
+//						pixelColor.z += ray.propagation.z * hitSphere->mat.emission.z;
+//					}
 
 					/*
 					 * Sample direct illumination
 					 */
-					if (hitSphere->mat.kd > 0.0f)
-					{
-						const float4 direct = sample_direct_illumination(&hit, spheres, sphereCount, &seed);
-						const float scale = hitSphere->mat.kd * evaluateLambert();
-						pixelColor.x += ray.propagation.x * direct.x * hitSphere->mat.diffuse.x * scale;
-						pixelColor.y += ray.propagation.y * direct.y * hitSphere->mat.diffuse.y * scale;
-						pixelColor.z += ray.propagation.z * direct.z * hitSphere->mat.diffuse.z * scale;
-					}
+//					if (hitSphere->mat.kd > 0.0f)
+//					{
+						const float4 direct = sample_direct_illumination_tri(&hit, tri_verts, tri_vert_idx, n_tris, spheres, sphereCount, &seed);
+						const float scale = 1.0f * evaluateLambert();
+						pixelColor.x += ray.propagation.x * direct.x * scale * 0.7f;
+						pixelColor.y += ray.propagation.y * direct.y * scale * 0.7f;
+						pixelColor.z += ray.propagation.z * direct.z * scale * 0.7f;
+//					}
 
 					if (rayDepth == maxDepth) break;
 
-					if (!sample_material(&ray, &hit, &(hitSphere->mat), &seed)) {
+//					if (!sample_material(&ray, &hit, &(hitSphere->mat), &seed)) {
 						break;
-					}
+//					}
 
 				} // if hit (sphere) object
 				else // No object hit (process hit for box).
@@ -128,7 +129,7 @@ __kernel void raytrace(__global float *out, __constant Camera *camera,
 						hit.hit_pt = (vec3) {ray.o.x + ray.d.x * ray.tmax, ray.o.y + ray.d.y * ray.tmax, ray.o.z + ray.d.z * ray.tmax};
 						boxNormal(&ray, &hit, BOX_WIDTH, BOX_HEIGHT, BOX_WIDTH); /* populate surface_normal */
 
-						const float4 direct = sample_direct_illumination(&hit, spheres, sphereCount, &seed);
+						const float4 direct = sample_direct_illumination_tri(&hit, tri_verts, tri_vert_idx, n_tris, spheres, sphereCount, &seed);
 						const float scale = evaluateLambert();
 						ray.propagation.x *= 0.7f;
 						ray.propagation.y *= 0.7f;
