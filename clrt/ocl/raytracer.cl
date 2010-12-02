@@ -15,8 +15,6 @@
 #define BOX_WIDTH 6.0f
 #define BOX_HEIGHT 5.0f
 
-
-
 int scene_intersection( ray_t *ray, __constant Sphere *geometry, const uint n_geometry)
 {
     int hitObject = -1;
@@ -49,7 +47,6 @@ bool visibility_test(const ray_t *ray, __constant Sphere * geometry, const uint 
     }
     return true;
 }
-
 
 /*!
  * Computes the direct illumination incident on a specified point.
@@ -158,6 +155,34 @@ bool sample_material(ray_t *ray, const hit_info_t *hit,
     }
     ray->d = shading_to_world(ray->d, hit->surface_normal);
     return true;
+}
+
+/*!
+ * \brief Gets a triangle by triangle index from global arrays of vertex index and vertex data.
+ * \param triangle struct to store the fetched triangle in.
+ * \param triangle_idx The index of the triangle to get (triples in tri_vert_indicies).
+ * \param tri_verts The vertex data for triangles (3 floats per vertex).
+ * \param tri_vert_indicies The triangle data, represented as offsets into tri_verts for each vertex.
+ *
+ * TODO: This is a very inefficient memory access pattern for the triangle data...
+ */
+void get_triangle(triangle_t *triangle, const uint triangle_idx, const __global vec3 *tri_verts, const __global uint *tri_vert_indicies) {
+    const uint triangleOffs = triangle_idx * 3;
+    /* Load triangle verts from global memory */
+    const __global vec3 *vert0 = &tri_verts[tri_vert_indicies[triangleOffs]];
+    const __global vec3 *vert1 = &tri_verts[tri_vert_indicies[triangleOffs + 1]];
+    const __global vec3 *vert2 = &tri_verts[tri_vert_indicies[triangleOffs + 2]];
+
+    /* Compute edges */
+    triangle->v0 = *vert0;
+    triangle->e1 = *vert1;
+    triangle->e1.x -= triangle->v0.x;
+    triangle->e1.y -= triangle->v0.y;
+    triangle->e1.z -= triangle->v0.z;
+    triangle->e2 = *vert2;
+    triangle->e2.x -= triangle->v0.x;
+    triangle->e2.y -= triangle->v0.y;
+    triangle->e2.z -= triangle->v0.z;
 }
 
 /*!

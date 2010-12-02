@@ -79,6 +79,18 @@ typedef struct {
 } ray_t;
 
 /*!
+ * \brief triangle geometry, a vertex and two edges.
+ */
+typedef struct {
+    /*! The base vertex of the triangle. */
+    vec3 v0;
+    /*! Vector from the base vertex to the next triangle vertex. */
+    vec3 e1;
+    /*! Vector from the base vertex to the last triangle vertex. */
+    vec3 e2;
+} triangle_t;
+
+/*!
  * \brief Struct to store ray/surface intersection information.
  */
 typedef struct {

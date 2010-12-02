@@ -289,7 +289,7 @@ void RayTracerCL::rayTrace(cl_mem *buff, uint const width, uint const height,
         cmdQueue.enqueueNDRangeKernel(raytracer_kernel, cl::NullRange,
                 cl::NDRange(wgMultipleWidth, wgMutipleHeight), cl::NDRange(
                         ndRangeSizes[0], ndRangeSizes[1]));
-        //cmdQueue.finish();
+        cmdQueue.finish();
 #ifdef DEBUG
         //		std::cout << "CL Render Time: " << timeElapsed(startTicks) << "s"
         //				<< std::endl;

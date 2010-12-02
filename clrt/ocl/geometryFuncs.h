@@ -5,7 +5,6 @@
 
 #define DOT(a,b) (a.x * b.x + a.y * b.y + a.z * b.z)
 
-
 /*!
  * \brief calculates a vector that is perpendicular to the specified vector.
  * \param vec A unit length vector.
@@ -32,7 +31,6 @@ vec3 cross_vec(const vec3 v1, const vec3 v2) {
         * v2.y - v1.y * v2.x};
 }
 
-
 /*!
  * \brief Ray-Sphere intersection test
  * \param ray The ray to test intersection with.
@@ -50,21 +48,18 @@ float intersectSphere(const ray_t *ray, float4 const center, float const radius)
     if (D > 0) {
         float sqrtD = sqrt(D);
         /* return the smallest positive value */
-        if (-B - sqrtD > ray->tmin) return -B-sqrtD;
+        if (-B - sqrtD > ray->tmin)
+            return -B - sqrtD;
         return -B + sqrtD;
     }
     return 0.0f;
 }
 
-void sphereNormal(hit_info_t *hit, float4 const center,
-        float const radius) {
+void sphereNormal(hit_info_t *hit, float4 const center, float const radius) {
     const float inv_radius = 1.0f / radius;
-    hit->surface_normal.x = (hit->hit_pt.x - center.x)
-            * inv_radius;
-    hit->surface_normal.y = (hit->hit_pt.y - center.y)
-            * inv_radius;
-    hit->surface_normal.z = (hit->hit_pt.z - center.z)
-            * inv_radius;
+    hit->surface_normal.x = (hit->hit_pt.x - center.x) * inv_radius;
+    hit->surface_normal.y = (hit->hit_pt.y - center.y) * inv_radius;
+    hit->surface_normal.z = (hit->hit_pt.z - center.z) * inv_radius;
 }
 
 void boxNormal(const ray_t *ray, hit_info_t *hit, float const xSize,
@@ -148,86 +143,56 @@ float intersectsBox(const ray_t *ray, const float4 center, const float xSize,
     return nearIsect;
 }
 
-
-
 /*!
  * \brief Moller-Trumbore ray/triangle intersection (based on Java implementation).
  * \param ray The ray to test intersection with.  ray->tmax is updated with the intersection distance if one occurred.
  * \param u Output for the barycentric u coordinate (edge between v0 -> v1)
  * \param v Output for the barycentric v coordinate (edge between v0 -> v2)
- * \param hit_tri Output for the index of the triangle that was hit, if any.
- * \param triangleOffs The index into vert_indices of the triangle vertex indices (the three index values starting with triangleOffs define the triangle
- * \param tri_verts The vertex data for triangles (3 floats per vertex).
- * \param vert_indices The triangle data, represented as offsets into tri_verts for each vertex.
+ * \param triangle The triangle to test intersection with.
+ * \return true if an intersection was found (and ray->tmax, u, and v were all assigned), false if no intersection was found (and none of the parameters were modified).
  */
-bool intersects_triangle (
-		ray_t *ray,
-		float *u, /* output for barycentric isect coord */
-		float *v, /* output for barycentric isect coord */
-		unsigned int *hit_tri, /* output for triangle index if isect occurred */
-		const unsigned int triangle_idx, /* triangle index */
-		const __global vec3 *tri_verts, /* vertex buffer */
-		const __global int *vert_indices) /* triplets of vertex indices for each triangle */
-{
-	const uint triangleOffs = triangle_idx * 3;
-	/* Load triangle verts from global memory */
-	const __global vec3 *vert0 = &tri_verts[vert_indices[triangleOffs]];
-	const __global vec3 *vert1 = &tri_verts[vert_indices[triangleOffs + 1]];
-	const __global vec3 *vert2 = &tri_verts[vert_indices[triangleOffs + 2]];
+bool intersects_triangle(ray_t *ray, float *u, float *v,
+        const triangle_t *triangle) {
+    const vec3 p = cross_vec(ray->d, triangle->e2);
+    float divisor = DOT(p, triangle->e1);
+    /*
+     * Ray nearly parallel to triangle plane, or degenerate triangle...
+     */
+    if (fabs(divisor) < SMALL_F) {
+        return false;
+    }
+    divisor = 1.0f / divisor;
+    vec3 translated_origin = ray->o;
+    translated_origin.x -= triangle->v0.x;
+    translated_origin.y -= triangle->v0.y;
+    translated_origin.z -= triangle->v0.z;
 
-	/* Compute edges */
-	const vec3 base_vert = *vert0;
-	vec3 e0 = *vert1;
-	e0.x -= base_vert.x;
-	e0.y -= base_vert.y;
-	e0.z -= base_vert.z;
-	vec3 e1 = *vert2;
-	e1.x -= base_vert.x;
-	e1.y -= base_vert.y;
-	e1.z -= base_vert.z;
+    const vec3 q = cross_vec(translated_origin, triangle->e1);
+    /*
+     * Barycentric coords also result from this formulation, which could be useful for interpolating attributes
+     * defined at the vertex locations:
+     */
+    const float e0dist = DOT(p, translated_origin) * divisor;
+    if (e0dist < 0 || e0dist > 1) {
+        return false;
+    }
 
-	const vec3 p = cross_vec(ray->d, e1);
-	const float divisor = DOT(p, e0);
-	/*
-	 * Ray nearly parallel to triangle plane, or degenerate triangle...
-	 */
-	if (divisor < SMALL_F && divisor > -SMALL_F) {
-		return false;
-	}
+    const float e1dist = DOT(q, ray->d) * divisor;
+    if (e1dist < 0 || e1dist + e0dist > 1) {
+        return false;
+    }
 
-	vec3 translated_origin = ray->o;
-	translated_origin.x -= base_vert.x;
-	translated_origin.y -= base_vert.y;
-	translated_origin.z -= base_vert.z;
+    const float isectDist = DOT(q, triangle->e2) * divisor;
 
-	const vec3 q = cross_vec(translated_origin, e0);
-	/*
-	 * Barycentric coords also result from this formulation, which could be useful for interpolating attributes
-	 * defined at the vertex locations:
-	 */
-	const float e0dist = DOT(p, translated_origin) / divisor;
-	if (e0dist < 0 || e0dist > 1) {
-		return false;
-	}
+    if (isectDist > ray->tmax || isectDist < ray->tmin) {
+        return false;
+    }
 
-	const float e1dist = DOT(q, ray->d) / divisor;
-	if (e1dist < 0 || e1dist + e0dist> 1) {
-		return false;
-	}
-
-	const float isectDist = DOT(q, e1) / divisor;
-
-	if (isectDist > ray->tmax || isectDist < ray->tmin) {
-		return false;
-	}
-
-	/* Found intersection, store tri index, isect dist, and barycentric coords. */
-	ray->tmax = isectDist;
-	*u = e0dist;
-	*v = e1dist;
-	*hit_tri = triangleOffs / 3;
-	return true;
+    /* Found intersection, store tri index, isect dist, and barycentric coords. */
+    ray->tmax = isectDist;
+    *u = e0dist;
+    *v = e1dist;
+    return true;
 }
-
 
 #endif /* GEOMETRY_FUNCS_H */
