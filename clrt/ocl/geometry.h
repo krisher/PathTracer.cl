@@ -152,13 +152,12 @@ typedef struct { //64B
  * Sphere geometry, with material properties for diffuse, specular, refractive, and emissive components.
  */
 typedef struct {
+    /*! \brief sphere material */
+    material_t mat;
     /*! \brief Center point of the sphere.  */
     vec3 center;
     /*! \brief Sphere radius.  */
     float radius;
-    /*! \brief sphere material */
-    material_t mat;
-
 } Sphere;
 
 

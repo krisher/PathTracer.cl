@@ -109,7 +109,7 @@ int main(void) {
     sphere.mat.emission.z = 1.1f;
     window.rayTracer.addSphere(sphere);
 
-    window.rayTracer.setSampleRate(2);
+    window.rayTracer.setSampleRate(1);
     window.rayTracer.setMaxPathDepth(6);
     window.rayTracer.setCameraSpherical(gmtl::Point3f(0, -4, -0), 40.0f,
             105.0f, 5);
