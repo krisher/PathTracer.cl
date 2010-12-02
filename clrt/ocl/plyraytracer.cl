@@ -4,7 +4,6 @@
  * \brief OpenCL based Path-Tracer kernel.
  *
  */
-#include "rtcommon.h"
 #include "geometry.h"
 #include "rng.h"
 #include "materials.h"

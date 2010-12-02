@@ -16,7 +16,9 @@ PlyProperty PLYLoader::face_props[1] = { /* list of property information for a f
 		offsetof(face_t,vertCount) }, };
 
 PLYLoader::PLYLoader(FILE *fp) {
+#ifdef DEBUG
 	std::cout << "Loading PLY from disk..." << std::endl;
+#endif /* DEBUG */
 	int i, j;
 	int elem_count;
 	char *elem_name;
@@ -62,12 +64,12 @@ PLYLoader::PLYLoader(FILE *fp) {
 			/* set up for getting face elements */
 
 			setup_property_ply(in_ply, &face_props[0]);
-//			face_other = get_other_properties_ply(in_ply,
-//					offsetof(Face,other_props));
+			//			face_other = get_other_properties_ply(in_ply,
+			//					offsetof(Face,other_props));
 
 			/* grab all the face elements */
 			for (j = 0; j < elem_count; j++) {
-//				flist[j] = (Face *) malloc(sizeof(Face));
+				//				flist[j] = (Face *) malloc(sizeof(Face));
 				get_element_ply(in_ply, (void *) &(flist[j]));
 				if (flist[j].vertCount == 2) {
 					triangles[j * 3] = flist[j].vertIdx[0];
@@ -82,6 +84,7 @@ PLYLoader::PLYLoader(FILE *fp) {
 	}
 
 	close_ply(in_ply);
-
+#ifdef DEBUG
 	std::cout << "Loaded: " << vertCount << " vertices, " << triCount << " faces." << std::endl;
+#endif /* DEBUG */
 }

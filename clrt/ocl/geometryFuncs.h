@@ -201,4 +201,48 @@ bool intersects_triangle(ray_t *ray, float *u, float *v,
 	return true;
 }
 
+/*!
+ * \brief Moller-Trumbore ray/triangle intersection (based on Java implementation).
+ * \param ray The ray to test intersection with.  ray->tmax is updated with the intersection distance if one occurred.
+ * \param u Output for the barycentric u coordinate (edge between v0 -> v1)
+ * \param v Output for the barycentric v coordinate (edge between v0 -> v2)
+ * \param triangle The triangle to test intersection with.
+ * \return true if an intersection was found (and ray->tmax, u, and v were all assigned), false if no intersection was found (and none of the parameters were modified).
+ */
+bool intersects_triangle_p(const ray_t *ray,
+		const triangle_t *triangle) {
+	const vec3 p = cross_vec(ray->d, triangle->e2);
+	float divisor = DOT(p, triangle->e1);
+	/*
+	 * Ray nearly parallel to triangle plane, or degenerate triangle...
+	 */
+	if (fabs(divisor) < SMALL_F) {
+		return false;
+	}
+	divisor = 1.0f / divisor;
+	vec3 translated_origin = ray->o;
+	translated_origin.x -= triangle->v0.x;
+	translated_origin.y -= triangle->v0.y;
+	translated_origin.z -= triangle->v0.z;
+
+	const vec3 q = cross_vec(translated_origin, triangle->e1);
+	/*
+	 * Barycentric coords also result from this formulation, which could be useful for interpolating attributes
+	 * defined at the vertex locations:
+	 */
+	const float e0dist = DOT(p, translated_origin) * divisor;
+	if (e0dist < 0 || e0dist > 1) {
+		return false;
+	}
+
+	const float e1dist = DOT(q, ray->d) * divisor;
+	if (e1dist < 0 || e1dist + e0dist > 1) {
+		return false;
+	}
+
+	const float isectDist = DOT(q, triangle->e2) * divisor;
+
+	return (isectDist < ray->tmax && isectDist > ray->tmin);
+}
+
 #endif /* GEOMETRY_FUNCS_H */
