@@ -150,6 +150,7 @@ bool sample_material(ray_t *ray, const hit_info_t *hit,
         ray->propagation.x *= cos_theta_wi;
         ray->propagation.y *= cos_theta_wi;
         ray->propagation.z *= cos_theta_wi;
+        ray->diffuse_bounce = false;
     } else {
         return false;
     }

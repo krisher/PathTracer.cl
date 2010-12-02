@@ -50,7 +50,7 @@ int main(void)
   sphere.extinction.y = 0.85f;
   sphere.extinction.z = 0.90f;
   sphere.extinction.w = 0.8f;
-  sphere.specExp = 100.0f;
+  sphere.specExp = 100000.0f;
   sphere.radius = 1.0f;
   window.rayTracer.addSphere(sphere);
 
