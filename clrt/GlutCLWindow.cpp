@@ -258,3 +258,29 @@ void GlutCLWindow::glutSpecialKeypressCallback(int key, int x, int y) {
     }
     }
 }
+
+void GlutCLWindow::glutMotionCallback(int x, int y) {
+    int dx = x - drag_start[0];
+    int dy = y - drag_start[1];
+
+    azimuth = fmod((azimuth + dx), 360.0f);
+    elevation = fmax(fmin(elevation + dy, 90.0f), 10.0f);
+    rayTracer.setCameraSpherical(gmtl::Point3f(0, -4, 0), elevation,
+                azimuth, distance);
+    progression = 0;
+    drag_start[0] = x;
+    drag_start[1] = y;
+}
+void GlutCLWindow::glutMouseCallback(int button, int state, int x, int y) {
+    if (button == 0) {
+        if (state == GLUT_DOWN) {
+            /* Primary Button Press, register motion callback, record location. */
+            enableMouseMotion();
+            drag_start[0] = x;
+            drag_start[1] = y;
+        } else {
+            /* Primary Button Release, deregister motion callback. */
+            disableMouseMotion();
+        }
+    }
+}
