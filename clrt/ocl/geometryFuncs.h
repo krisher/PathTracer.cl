@@ -55,17 +55,17 @@ float intersectSphere(const ray_t *ray, vec3 const center, float const radius) {
 	return 0.0f;
 }
 
-
 void sphereNormal(hit_info_t *hit, vec3 const center, float const radius) {
-    const float inv_radius = 1.0f / radius;
+	const float inv_radius = 1.0f / radius;
 	//FIXME: A variant of this line was added for debugging, but if it is not present, normal's length is
 	//not correct on NVidia Quadro FX5800 with driver 260.19.21 on debian x64.
 	// Maybe a CL complier bug?  Otherwise I am doing something wrong that I can't find...
-	if (inv_radius > 0.0f) hit->surface_normal.x = 1.0f;
+	if (inv_radius > 0.0f)
+		hit->surface_normal.x = 1.0f;
 
-    hit->surface_normal.x = (hit->hit_pt.x - center.x) * inv_radius;
-    hit->surface_normal.y = (hit->hit_pt.y - center.y) * inv_radius;
-    hit->surface_normal.z = (hit->hit_pt.z - center.z) * inv_radius;
+	hit->surface_normal.x = (hit->hit_pt.x - center.x) * inv_radius;
+	hit->surface_normal.y = (hit->hit_pt.y - center.y) * inv_radius;
+	hit->surface_normal.z = (hit->hit_pt.z - center.z) * inv_radius;
 }
 
 void boxNormal(const ray_t *ray, hit_info_t *hit, float const xSize,
@@ -209,8 +209,7 @@ bool intersects_triangle(ray_t *ray, float *u, float *v,
  * \param triangle The triangle to test intersection with.
  * \return true if an intersection was found (and ray->tmax, u, and v were all assigned), false if no intersection was found (and none of the parameters were modified).
  */
-bool intersects_triangle_p(const ray_t *ray,
-		const triangle_t *triangle) {
+bool intersects_triangle_p(const ray_t *ray, const triangle_t *triangle) {
 	const vec3 p = cross_vec(ray->d, triangle->e2);
 	float divisor = DOT(p, triangle->e1);
 	/*
