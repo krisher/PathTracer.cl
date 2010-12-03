@@ -90,6 +90,7 @@ __kernel void raytrace(__global float *out, __constant Camera *camera,
         } // foreach sy
     } // foreach sx
 
+    pixelColor /= sampleRate * sampleRate;
     if (progressive > 0)
     {
         float4 color = vload4((y * imWidth + x), out);
