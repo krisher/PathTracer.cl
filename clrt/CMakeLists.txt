@@ -18,7 +18,7 @@ add_custom_command(
 )
 
 
-target_link_libraries(clrt ${GLUT_glut_LIBRARY} ${OPENGL_LIBRARIES} ${OPENCL_LIBRARIES})
+target_link_libraries(clrt ${GLUT_glut_LIBRARY} ${OPENGL_LIBRARIES} ${OPENCL_LIBRARIES} rt)
 
 
 add_executable(plyclrt 
@@ -39,4 +39,4 @@ add_custom_command(
 )
 
 
-target_link_libraries(plyclrt ${GLUT_glut_LIBRARY} ${OPENGL_LIBRARIES} ${OPENCL_LIBRARIES})
+target_link_libraries(plyclrt ${GLUT_glut_LIBRARY} ${OPENGL_LIBRARIES} ${OPENCL_LIBRARIES} rt)
