@@ -264,14 +264,14 @@ bool sample_material(ray_t *ray, const hit_info_t *hit,
  *        the value determines the mixing weight.
  * \param seeds Seed data for the random number generator.  There should be one seed per pixel.  These values are used to generate a uniform random number sequence for each pixel, however the seed data is not updated in global memory.
  */
-vec3 trace_path(ray_t ray,
+vec3 trace_path(ray_t *ray,
         __constant Sphere *spheres, uint const sphereCount,
         uint const maxDepth,const uint box_width, const uint box_height, seed_value_t *seed)
 {
     vec3 pixelColor = {0.0f, 0.0f, 0.0f};
     for (int rayDepth = 0; rayDepth <= maxDepth; ++rayDepth)
     {
-        int hitIdx = scene_intersection( &ray, spheres, sphereCount);
+        int hitIdx = scene_intersection( ray, spheres, sphereCount);
         if (hitIdx >= 0)
         {
 
@@ -280,22 +280,22 @@ vec3 trace_path(ray_t ray,
              * Update origin to new intersect point
              */
             hit_info_t hit;
-            hit.hit_pt = (vec3) {ray.o.x + ray.d.x * ray.tmax, ray.o.y + ray.d.y * ray.tmax, ray.o.z + ray.d.z * ray.tmax};
+            hit.hit_pt = (vec3) {ray->o.x + ray->d.x * ray->tmax, ray->o.y + ray->d.y * ray->tmax, ray->o.z + ray->d.z * ray->tmax};
             sphereNormal(&hit, hitSphere->center, hitSphere->radius);
 
             /* Apply extinction due to simple participating media */
-            if (ray.extinction.x > 0.0f) ray.propagation.x *= exp(log(ray.extinction.x) * ray.tmax);
-            if (ray.extinction.y > 0.0f) ray.propagation.y *= exp(log(ray.extinction.y) * ray.tmax);
-            if (ray.extinction.z > 0.0f) ray.propagation.z *= exp(log(ray.extinction.z) * ray.tmax);
+            if (ray->extinction.x > 0.0f) ray->propagation.x *= exp(log(ray->extinction.x) * ray->tmax);
+            if (ray->extinction.y > 0.0f) ray->propagation.y *= exp(log(ray->extinction.y) * ray->tmax);
+            if (ray->extinction.z > 0.0f) ray->propagation.z *= exp(log(ray->extinction.z) * ray->tmax);
 
             /*
              * Emissive contribution on surfaces that are not sampled for direct illumination.
              */
-            if (!ray.diffuse_bounce && hitSphere->mat.emission_power != 0)
+            if (!ray->diffuse_bounce && hitSphere->mat.emission_power != 0)
             {
-                pixelColor.x += ray.propagation.x * hitSphere->mat.emission.x;
-                pixelColor.y += ray.propagation.y * hitSphere->mat.emission.y;
-                pixelColor.z += ray.propagation.z * hitSphere->mat.emission.z;
+                pixelColor.x += ray->propagation.x * hitSphere->mat.emission.x;
+                pixelColor.y += ray->propagation.y * hitSphere->mat.emission.y;
+                pixelColor.z += ray->propagation.z * hitSphere->mat.emission.z;
             }
 
             /*
@@ -305,55 +305,55 @@ vec3 trace_path(ray_t ray,
             {
                 const float4 direct = sample_direct_illumination(&hit, spheres, sphereCount, LIGHT_SAMPLES, seed);
                 const float scale = hitSphere->mat.kd * evaluateLambert();
-                pixelColor.x += ray.propagation.x * direct.x * hitSphere->mat.diffuse.x * scale;
-                pixelColor.y += ray.propagation.y * direct.y * hitSphere->mat.diffuse.y * scale;
-                pixelColor.z += ray.propagation.z * direct.z * hitSphere->mat.diffuse.z * scale;
+                pixelColor.x += ray->propagation.x * direct.x * hitSphere->mat.diffuse.x * scale;
+                pixelColor.y += ray->propagation.y * direct.y * hitSphere->mat.diffuse.y * scale;
+                pixelColor.z += ray->propagation.z * direct.z * hitSphere->mat.diffuse.z * scale;
             }
 
             if (rayDepth == maxDepth) break;
 
-            if (!sample_material(&ray, &hit, &(hitSphere->mat), seed)) {
+            if (!sample_material(ray, &hit, &(hitSphere->mat), seed)) {
                 break;
             }
 
         } // if hit (sphere) object
         else // No object hit (process hit for box).
         {
-            float hitDistance = intersectsBox(&ray, (float4)0.0f, box_width, box_height, box_width);
-            if (hitDistance > ray.tmin && hitDistance < ray.tmax)
+            float hitDistance = intersectsBox(ray, (float4)0.0f, box_width, box_height, box_width);
+            if (hitDistance > ray->tmin && hitDistance < ray->tmax)
             {
-                ray.tmax = hitDistance;
+                ray->tmax = hitDistance;
                 hit_info_t hit;
-                hit.hit_pt = (vec3) {ray.o.x + ray.d.x * ray.tmax, ray.o.y + ray.d.y * ray.tmax, ray.o.z + ray.d.z * ray.tmax};
-                boxNormal(&ray, &hit, box_width, box_height, box_width); /* populate surface_normal */
+                hit.hit_pt = (vec3) {ray->o.x + ray->d.x * ray->tmax, ray->o.y + ray->d.y * ray->tmax, ray->o.z + ray->d.z * ray->tmax};
+                boxNormal(ray, &hit, box_width, box_height, box_width); /* populate surface_normal */
 
                 const float4 direct = sample_direct_illumination(&hit, spheres, sphereCount, LIGHT_SAMPLES, seed);
                 const float scale = evaluateLambert();
-                ray.propagation.x *= 0.7f;
-                ray.propagation.y *= 0.7f;
-                ray.propagation.z *= 0.7f;
-                pixelColor.x += ray.propagation.x * direct.x * scale;
-                pixelColor.y += ray.propagation.y * direct.y * scale;
-                pixelColor.z += ray.propagation.z * direct.z * scale;
+                ray->propagation.x *= 0.7f;
+                ray->propagation.y *= 0.7f;
+                ray->propagation.z *= 0.7f;
+                pixelColor.x += ray->propagation.x * direct.x * scale;
+                pixelColor.y += ray->propagation.y * direct.y * scale;
+                pixelColor.z += ray->propagation.z * direct.z * scale;
 
-                ray.o.x = hit.hit_pt.x;
-                ray.o.y = hit.hit_pt.y;
-                ray.o.z = hit.hit_pt.z;
-                //ray.d is not used by sampleLambert
+                ray->o.x = hit.hit_pt.x;
+                ray->o.y = hit.hit_pt.y;
+                ray->o.z = hit.hit_pt.z;
+                //ray->d is not used by sampleLambert
                 //                        /* convert wi to a vector pointing away from the hit point */
-                //                        ray.d.x *= -1.0f;
-                //                        ray.d.y *= -1.0f;
-                //                        ray.d.z *= -1.0f;
+                //                        ray->d.x *= -1.0f;
+                //                        ray->d.y *= -1.0f;
+                //                        ray->d.z *= -1.0f;
                 //                        /* And into shading coords */
-                //                        ray.d = world_to_shading(ray.d, hit.surface_normal);
+                //                        ray->d = world_to_shading(ray->d, hit.surface_normal);
 
-                ray.tmin = SMALL_F;
-                ray.tmax = INFINITY;
+                ray->tmin = SMALL_F;
+                ray->tmax = INFINITY;
 
                 //const float pdf =
-                sampleLambert(&(ray.d), frand(seed), frand(seed));
-                ray.d = shading_to_world(ray.d, hit.surface_normal);
-                ray.diffuse_bounce=true;
+                sampleLambert(&(ray->d), frand(seed), frand(seed));
+                ray->d = shading_to_world(ray->d, hit.surface_normal);
+                ray->diffuse_bounce=true;
             }
             else
             {

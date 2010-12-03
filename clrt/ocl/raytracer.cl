@@ -83,7 +83,7 @@ __kernel void raytrace(__global float *out, __constant Camera *camera,
                     camera->up * ((float)(y + strat_rand(&seed, sy, sampleRate)) - ((float)imHeight)/2.0f));
 
             ray_t ray = {camera->position.x, camera->position.y, camera->position.z, rdirection.x, rdirection.y, rdirection.z, SMALL_F, INFINITY, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f, false};
-            vec3 result = trace_path(ray, spheres, sphereCount, maxDepth, BOX_WIDTH, BOX_HEIGHT, &seed);
+            vec3 result = trace_path(&ray, spheres, sphereCount, maxDepth, BOX_WIDTH, BOX_HEIGHT, &seed);
             pixelColor.x += result.x;
             pixelColor.y += result.y;
             pixelColor.z += result.z;
@@ -152,7 +152,7 @@ __kernel void raytrace_ss(__global float *out, __constant Camera *camera,
 
     ray_t ray = {camera->position.x, camera->position.y, camera->position.z, rdirection.x, rdirection.y, rdirection.z, SMALL_F, INFINITY, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f, false};
 
-    vec3 color = trace_path(ray, spheres, sphereCount, maxDepth, BOX_WIDTH, BOX_HEIGHT, &seed);
+    vec3 color = trace_path(&ray, spheres, sphereCount, maxDepth, BOX_WIDTH, BOX_HEIGHT, &seed);
 
     float4 pixelColor = (float4)(color.x, color.y, color.z, 0.0f);
     if (progressive > 0)
