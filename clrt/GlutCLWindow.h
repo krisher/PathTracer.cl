@@ -45,13 +45,13 @@ private:
     float elevation;
     float distance;
 
-    clock_t last_render_end;
+    timespec last_render_end;
     unsigned int frame_counter;
     double fps;
 
 
     static const bool reportFPS = true;
-    static const unsigned int fpsAvgFrames = 10;
+    static const unsigned int fpsAvgFrames = 20;
 
     void allocatePBO();
     void rayTrace();

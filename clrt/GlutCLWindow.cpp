@@ -130,7 +130,7 @@ void GlutCLWindow::glutReshapeCallback(int w, int h) {
     glOrtho(0.0, 1.0, 0.0, 1.0, 0.0, 1.0);
 
     reallocPBO = true;
-    last_render_end = clock();
+    clock_gettime(CLOCK_REALTIME, &last_render_end);
 }
 
 void GlutCLWindow::glutDisplayCallback() {
@@ -168,9 +168,9 @@ void GlutCLWindow::glutDisplayCallback() {
 
     if (reportFPS) {
         if (++frame_counter == fpsAvgFrames) {
-            clock_t time = clock();
-            fps = CLOCKS_PER_SEC / ((time - last_render_end)
-                    / (double) fpsAvgFrames);
+            timespec time;
+            clock_gettime(CLOCK_REALTIME, &time);
+            fps = (double) fpsAvgFrames / (((time.tv_nsec/1000000000.0 + time.tv_sec)  - (last_render_end.tv_nsec/1000000000.0 + last_render_end.tv_sec)));
             frame_counter = 0;
             last_render_end = time;
         }

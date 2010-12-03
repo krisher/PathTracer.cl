@@ -184,6 +184,8 @@ bool sampleRefraction(vec3 *transmission, ray_t *ray, const hit_info_t *hit,
             /*
              * Identical to Phong, except we substitute the refraction direction
              * for the mirror reflection vector.
+             *
+             * TODO: This is broken...
              */
             float cos_a = pow(r1, 1.0f / (blurExp + 1.0f));
             float const sinTheta = sqrt(1.0f - cos_a * cos_a);

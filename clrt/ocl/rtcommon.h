@@ -6,6 +6,8 @@
 #include "materials.h"
 #include "geometryFuncs.h"
 
+#define LIGHT_SAMPLES 2
+
 /*!
  * \brief Gets a triangle by triangle index from global arrays of vertex index and vertex data.
  * \param triangle struct to store the fetched triangle in.
@@ -301,7 +303,7 @@ vec3 trace_path(ray_t ray,
              */
             if (hitSphere->mat.kd > 0.0f)
             {
-                const float4 direct = sample_direct_illumination(&hit, spheres, sphereCount, 2, seed);
+                const float4 direct = sample_direct_illumination(&hit, spheres, sphereCount, LIGHT_SAMPLES, seed);
                 const float scale = hitSphere->mat.kd * evaluateLambert();
                 pixelColor.x += ray.propagation.x * direct.x * hitSphere->mat.diffuse.x * scale;
                 pixelColor.y += ray.propagation.y * direct.y * hitSphere->mat.diffuse.y * scale;
@@ -325,7 +327,7 @@ vec3 trace_path(ray_t ray,
                 hit.hit_pt = (vec3) {ray.o.x + ray.d.x * ray.tmax, ray.o.y + ray.d.y * ray.tmax, ray.o.z + ray.d.z * ray.tmax};
                 boxNormal(&ray, &hit, box_width, box_height, box_width); /* populate surface_normal */
 
-                const float4 direct = sample_direct_illumination(&hit, spheres, sphereCount, 2, seed);
+                const float4 direct = sample_direct_illumination(&hit, spheres, sphereCount, LIGHT_SAMPLES, seed);
                 const float scale = evaluateLambert();
                 ray.propagation.x *= 0.7f;
                 ray.propagation.y *= 0.7f;
