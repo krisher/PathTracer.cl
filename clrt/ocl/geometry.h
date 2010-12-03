@@ -124,6 +124,8 @@ typedef struct {
 
 /*!
  * Material parameters.
+ *
+ * TODO: precision can be reduced below the current 32bit per component values for all properties here if bandwidth becomes an issue.
  */
 typedef struct { //64B
     /*! Diffuse reflectance */

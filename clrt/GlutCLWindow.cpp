@@ -232,30 +232,36 @@ void GlutCLWindow::glutSpecialKeypressCallback(int key, int x, int y) {
         azimuth = fmod((azimuth + 3.0f), 360.0f);
         rayTracer.setCameraSpherical(gmtl::Point3f(0, -4, 0), elevation,
                 azimuth, distance);
-        progression = 0;
+        restart();
         break;
     }
     case GLUT_KEY_RIGHT: {
         azimuth = fmod((azimuth - 3.0f), 360.0f);
         rayTracer.setCameraSpherical(gmtl::Point3f(0, -4, 0), elevation,
                 azimuth, distance);
-        progression = 0;
+        restart();
         break;
     }
     case GLUT_KEY_UP: {
         elevation = fmin(elevation + 3.0f, 90.0f);
         rayTracer.setCameraSpherical(gmtl::Point3f(0, -4, 0), elevation,
                 azimuth, distance);
-        progression = 0;
+        restart();
         break;
     }
     case GLUT_KEY_DOWN: {
         elevation = fmax(elevation - 3.0f, 10.0f);
         rayTracer.setCameraSpherical(gmtl::Point3f(0, -4, 0), elevation,
                 azimuth, distance);
-        progression = 0;
+        restart();
         break;
     }
+    }
+}
+
+void GlutCLWindow::glutKeypressCallback(unsigned char key, int x, int y) {
+    if (key == 'c') {
+        std::cout << "Azimuth: " << azimuth << ", Elevation: " << elevation << ", Distance: " << distance << std::endl;
     }
 }
 
@@ -267,9 +273,9 @@ void GlutCLWindow::glutMotionCallback(int x, int y) {
     elevation = fmax(fmin(elevation + dy, 90.0f), 10.0f);
     rayTracer.setCameraSpherical(gmtl::Point3f(0, -4, 0), elevation,
                 azimuth, distance);
-    progression = 0;
     drag_start[0] = x;
     drag_start[1] = y;
+    restart();
 }
 void GlutCLWindow::glutMouseCallback(int button, int state, int x, int y) {
     if (button == 0) {
@@ -282,5 +288,14 @@ void GlutCLWindow::glutMouseCallback(int button, int state, int x, int y) {
             /* Primary Button Release, deregister motion callback. */
             disableMouseMotion();
         }
+    }
+}
+
+void GlutCLWindow::restart() {
+    if (progression >= maxProgression) {
+        progression = 0;
+        glutPostRedisplay();
+    } else {
+        progression = 0;
     }
 }

@@ -55,6 +55,7 @@ private:
 
     void allocatePBO();
     void rayTrace();
+    void restart();
 
 public:
     /*!
@@ -67,6 +68,7 @@ public:
     virtual void glutDisplayCallback();
     virtual void glutReshapeCallback(int w, int h);
     virtual void glutSpecialKeypressCallback(int key, int x, int y);
+    virtual void glutKeypressCallback(unsigned char key, int x, int y);
     virtual void glutMotionCallback(int x, int y);
     virtual void glutMouseCallback(int button, int state, int x, int y);
 

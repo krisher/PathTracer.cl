@@ -16,6 +16,18 @@
 #define BOX_WIDTH 6.0f
 #define BOX_HEIGHT 5.0f
 
+
+void get_seed(seed_value_t *seed, __global const uint *seeds, const uint row_shift) {
+    const uint seed_offs = ((get_global_id(1) + row_shift) % get_global_size(1)) * get_global_size(0) + get_global_id(0);
+    seed->x = seeds[seed_offs];
+    seed->y = seeds[(get_global_size(0) * get_global_size(1)) + seed_offs];
+}
+
+void put_seed(const seed_value_t seed, __global uint *seeds, const uint row_shift) {
+    const uint seed_offs = ((get_global_id(1) + row_shift) % get_global_size(1)) * get_global_size(0) + get_global_id(0);
+    seeds[seed_offs] = seed.x;
+    seeds[(get_global_size(0) * get_global_size(1)) + seed_offs] = seed.y;
+}
 /*!
  * \brief Ray Tracer entry point
  *
@@ -52,10 +64,10 @@ __kernel void raytrace(__global float *out, __constant Camera *camera,
      * Copy RNG seed data into private memory for faster access.
      */
     seed_value_t seed;
-
-    const uint seed_offs = y * get_global_size(0) + x;
-    seed.x = seeds[seed_offs];
-    seed.y = seeds[(get_global_size(0) * get_global_size(1)) + seed_offs];
+    get_seed(&seed, seeds, progressive);
+//    const uint seed_offs = y * get_global_size(0) + x;
+//    seed.x = seeds[seed_offs];
+//    seed.y = seeds[(get_global_size(0) * get_global_size(1)) + seed_offs];
 
     /*
      * Color variable used to accumulate samples
@@ -85,8 +97,9 @@ __kernel void raytrace(__global float *out, __constant Camera *camera,
     }
 
     vstore4(pixelColor, (y * imWidth + x), out);
-    seeds[seed_offs] = seed.x;
-    seeds[get_global_size(0) * get_global_size(1) + seed_offs] = seed.y;
+    put_seed(seed, seeds, progressive);
+//    seeds[seed_offs] = seed.x;
+//    seeds[get_global_size(0) * get_global_size(1) + seed_offs] = seed.y;
 }
 
 /*!
