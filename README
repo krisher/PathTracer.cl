@@ -1,0 +1,57 @@
+System/Platform Requirements
+============================
+
+Architecture: x86, x86_64
+Platform: Linux (tested with Ubuntu 10.10 and Debian Sid)
+
+Libraries:
+-----------
+OpenCL: 
+A driver supporting OpenCL 1.0 or later is required for the path tracer. There are implementations supporting recent NVidia and ATI graphics hardware, as well as any x86 CPU supporting SIMD instructions. The application was tested using NVidia's 260.19.21 linux drivers on  both a Quadro FX5800 card and a GTX460 card.  It was also tested on several multi-core CPUs using ATI's Stream SDK 2.2. 
+
+OpenGL:  
+OpenGL version 2.1 is required to draw the ray-traced images.  The driver/hardware must support 32bits per component image formats (RGBA_32F).  OpenGL development headers must be available on the host system to compile (but not to run) the application (including gl.h, glext.h, and glx.h).
+
+GLUT:  
+GLUT is used to manage the OpenGL environment, render loop, and interaction event handling.  Tested with freeglut version 3.
+
+
+Compiling from Source
+=====================
+The application uses cmake as a build system.  Cmake abstracts many of the details of the build process in a platform independent manner, and can be used to generate builds using Make, Visual Studio, XCode, Eclipse, and others.  While the system only builds on Linux at the moment, the intention is to eventually port the application to other operating systems, and Cmake will simplify this process.  To build, you will need:
+
+ * CMake
+ * Make
+ * A C++ compiler (e.g. gcc)
+ * Header files for the various library dependencies (OpenGL, GLX, GLUT)
+
+To build, from the root directory of the source tree issue the commands:
+
+ $ mkdir build
+ $ cd build
+ $ cmake ../
+ $ make clrt
+
+If successful, the built executable can be found in <source.dir>/build/clrt/clrt.  
+
+By default, the application will choose the first OpenCL device that is found.  If you have multiple devices available (e.g. multiple GPUs or GPU and CPU), an alternate build process will produce an executable that prompts (via the command line) for the device to use.  To create such a build, replace ‘make clrt’ with:
+
+ $ make debug clrt
+
+This functionality will eventually be available via GUI controls.
+
+
+Using the Application
+=====================
+From the application directory, issue the command:
+
+ $ ./clrt
+
+To start the ray tracer.  Note that this command must be run from the application directory in order to locate the OpenCL files necessary to run (this will be addressed in a future revision).
+Upon successful launch, a single window will appear, and it will immediately begin ray tracing.  The current frame rate (averaged over 20 frames) is displayed in the upper left corner.  You can manipulate the camera position by pressing and dragging the left mouse button over the window.
+
+
+Acknowledgements
+================
+The application uses source code from GMTL (http://ggt.sourceforge.net/) for basic vector and matrix math operations in the C++ host code and a PLY file parser from Georgia Tech ( http://www.cc.gatech.edu/projects/large_models/ply.html).
+
