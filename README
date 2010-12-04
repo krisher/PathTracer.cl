@@ -47,7 +47,7 @@ From the application directory, issue the command:
 
  $ ./clrt
 
-To start the ray tracer.  Note that this command must be run from the application directory in order to locate the OpenCL files necessary to run (this will be addressed in a future revision).
+To start the ray tracer.  The application may take a while to display a window, while the OpenCL kernels are being compiled.  Note that this command must be run from the application directory in order to locate the OpenCL files necessary to run (this will be addressed in a future revision).
 Upon successful launch, a single window will appear, and it will immediately begin ray tracing.  The current frame rate (averaged over 20 frames) is displayed in the upper left corner.  You can manipulate the camera position by pressing and dragging the left mouse button over the window.
 
 
